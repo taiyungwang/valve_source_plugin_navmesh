@@ -9,18 +9,20 @@
 
 #include <utlmap.h>
 
-class ServerClass;
+class EntityClass;
 class IServerGameDLL;
 
 class EntityClassManager {
 public:
 	EntityClassManager(IServerGameDLL *servergamedll);
 
-	const ServerClass* getClass(const char* name) const;
+	~EntityClassManager();
+
+	EntityClass* getClass(const char* name);
 
 private:
 
-	CUtlMap<const char*, const ServerClass*> classes;
+	CUtlMap<const char*, EntityClass*> classes;
 };
 
 

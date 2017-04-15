@@ -22,10 +22,8 @@ class IPlayerInfo;
 
 typedef CHandle<edict_t> EHandle;
 
-int getTeam(edict_t* ent);
-
-edict_t* findEntityByClassNameNearest(const char* className,
-		const Vector& pos, float maxRadius);
+edict_t* findEntityByMoveTypeNearest(unsigned char type, const Vector& pos,
+		float maxRadius);
 
 IPlayerInfo *UTIL_GetListenServerHost( void );
 

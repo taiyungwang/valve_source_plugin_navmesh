@@ -6,6 +6,9 @@
 
 #include "EntityClassManager.h"
 
+#include "EntityClass.h"
+#include "EntityVar.h"
+#include "SimpleException.h"
 #include <edict.h>
 #include <server_class.h>
 #include <eiface.h>
@@ -15,14 +18,22 @@ EntityClassManager::EntityClassManager(IServerGameDLL *servergamedll) {
 	for (const ServerClass *pClass = servergamedll->GetAllServerClasses();
 			pClass != nullptr; pClass = pClass->m_pNext)
 	{
-		classes.Insert(pClass->m_pNetworkName, pClass);
+		classes.Insert(pClass->m_pNetworkName, new EntityClass(pClass));
 	}
 }
 
-const ServerClass* EntityClassManager::getClass(const char* name) const {
+EntityClassManager::~EntityClassManager() {
+	FOR_EACH_MAP_FAST(classes, i) {
+		delete classes[i];
+		classes[i] = nullptr;
+	}
+	classes.RemoveAll();
+}
+
+EntityClass* EntityClassManager::getClass(const char* name) {
 	int i = classes.Find(name);
 	if (classes.IsValidIndex(i)) {
 		return classes.Element(i);
 	}
-	return nullptr;
+	throw SimpleException(CUtlString("Class not found: ") + name);
 }

@@ -100,22 +100,6 @@ class CFuncBrush;
 class ServerClass;
 struct edict_t;
 
-ServerClass *UTIL_FindServerClass(const char *name);
-
-bool UTIL_FindSendPropInfo(const ServerClass *pInfo, const char *szType, unsigned int *offset);
-
-template<typename T>
-T getClassData(edict_t* ent, const ServerClass* sc, const char* type) {
-	unsigned int offset;
-	T val;
-	if (!UTIL_FindSendPropInfo(sc,
-			type, &offset)) {
-		Msg("Could not find offset for type %s", type);
-	} else {
-		val = *reinterpret_cast<T*>((void *)((char *)ent + offset));
-	}
-	return val;
-}
 
 void UTIL_Trace(const Ray_t& ray, unsigned int mask,
 		const ITraceFilter& filter, trace_t *ptr);
@@ -123,8 +107,6 @@ void UTIL_Trace(const Ray_t& ray, unsigned int mask,
 edict_t *EntityFromEntityHandle(IHandleEntity *pHandleEntity);
 
 bool FClassnameIs(edict_t *pEntity, const char *szClassname);
-
-bool onLadder(edict_t *ent);
 
 /**
  * Below are several constants used by the navigation system.

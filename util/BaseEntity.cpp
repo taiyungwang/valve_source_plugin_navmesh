@@ -6,34 +6,20 @@
 
 #include "BaseEntity.h"
 
-#include "EntityClass.h"
 #include "EntityClassManager.h"
-#include "EntityVar.h"
 #include <edict.h>
+#include <const.h>
 
-BaseEntity::BaseEntity(const EntityClassManager& classManager, edict_t* ent) :
+BaseEntity::BaseEntity(EntityClassManager& classManager, edict_t* ent) :
 		ent(ent) {
-	classDef = new EntityClass(classManager.getClass("CBaseEntity"));
+	classDef = classManager.getClass("CBaseEntity");
 }
 
-BaseEntity::~BaseEntity() {
-	delete classDef;
+bool BaseEntity::isOnLadder() {
+	return getMoveType() == MOVETYPE_LADDER;
 }
 
-int BaseEntity::getITeam() {
-	return get<int>("m_iTeam");
-}
-
-unsigned char BaseEntity::getMoveType() {
-	return get<unsigned char>("m_MoveType");
-}
-
-unsigned char BaseEntity::getRenderMode() {
-	return get<unsigned char>("m_nRenderMode");
-}
-
-
-template<typename T>
-T BaseEntity::get(const char* name) {
-	return classDef->getEntityVar(name).getVar<T>(ent);
+bool BaseEntity::shouldCollide(int collisionGroup, int contentsMask) {
+	return get<int>("m_Collision") != COLLISION_GROUP_DEBRIS
+			|| (contentsMask & CONTENTS_DEBRIS);
 }

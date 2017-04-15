@@ -13,6 +13,9 @@ class EntityVar;
 class SendTable;
 class ServerClass;
 
+/**
+ * Defines an Entity Class. It caches any previously added to the map.
+ */
 class EntityClass {
 public:
 	EntityClass(const ServerClass* pClass): pClass(pClass) {
@@ -20,7 +23,7 @@ public:
 
 	}
 
-	const EntityVar& getEntityVar(const char* varName);
+	EntityVar& getEntityVar(const char* varName);
 
 private:
 

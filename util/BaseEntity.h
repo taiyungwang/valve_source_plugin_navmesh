@@ -7,27 +7,42 @@
 #ifndef UTILS_VALVE_NAVMESH_UTIL_BASEENTITY_H_
 #define UTILS_VALVE_NAVMESH_UTIL_BASEENTITY_H_
 
+#include "EntityClass.h"
+#include "EntityVar.h"
+
 class EntityClassManager;
-class EntityClass;
 struct edict_t;
 
 class BaseEntity {
 public:
-	BaseEntity(const EntityClassManager& classManager, edict_t *ent);
+	BaseEntity(EntityClassManager& classManager, edict_t *ent);
 
-	~BaseEntity();
+	int getTeam() {
+		return get<int>("m_iTeam");
+	}
 
-	int getITeam();
+	int getMoveType() {
+		return get<int>("movetype");
+	}
 
-	unsigned char getMoveType();
+	bool isOnLadder();
 
-	unsigned char getRenderNormal();
+	unsigned char getRenderMode() {
+		return get<unsigned char>("m_nRenderMode");
+	}
 
-	unsigned char getRenderMode();
+	int getModelIndex() {
+		return get<short>("m_nModelIndex");
+	}
+
+	bool shouldCollide(int collisionGroup, int contentsMask);
+
 private:
 
 	template<typename T>
-	T get(const char* name);
+	T get(const char* name) {
+		return classDef->getEntityVar(name).getVar<T>(ent);
+	}
 
 	EntityClass* classDef;
 

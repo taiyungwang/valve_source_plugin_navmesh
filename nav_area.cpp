@@ -72,7 +72,6 @@ inline void UTIL_TraceLine( const Vector& vecAbsStart, const Vector& vecAbsEnd, 
 {
 	Ray_t ray;
 	ray.Init( vecAbsStart, vecAbsEnd );
-
 	extern IEngineTrace *enginetrace;
 	enginetrace->TraceRay( ray, mask, pFilter, ptr );
 	extern ConVar r_visualizetraces;

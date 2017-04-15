@@ -12,6 +12,8 @@
 #include "nav_colors.h"
 #include "nav.h"
 #include "nav_mesh.h"
+#include "util/BaseEntity.h"
+#include "util/EntityClassManager.h"
 #include <gametrace.h>
 #include <eiface.h>
 #include <convar.h>
@@ -486,7 +488,8 @@ void CNavLadder::DrawConnectedAreas( bool isEdit )
 
 //--------------------------------------------------------------------------------------------------------------
 bool CNavLadder::IsUsableByTeam(int teamNumber) const {
-	int ladderTeamNumber = getTeam(m_ladderEntity.Get());
+	extern EntityClassManager *classManager;
+	int ladderTeamNumber = BaseEntity(*classManager, m_ladderEntity.Get()).getTeam();
 	return (teamNumber == ladderTeamNumber
 			|| ladderTeamNumber == TEAM_UNASSIGNED);
 }
@@ -500,16 +503,10 @@ void CNavLadder::OnRoundRestart( void )
 	FindLadderEntity();
 }
 
-
 //--------------------------------------------------------------------------------------------------------------
 void CNavLadder::FindLadderEntity( void )
 {
-#ifdef TERROR
-	const char* LADDER_NAME = "func_simpleladder";
-#else
-	const char* LADDER_NAME = "ladder";
-#endif
-	m_ladderEntity = findEntityByClassNameNearest(LADDER_NAME,
+	m_ladderEntity = findEntityByMoveTypeNearest(MOVETYPE_LADDER,
 			(m_top + m_bottom) * 0.5f, HalfHumanWidth);
 }
 
@@ -649,7 +646,8 @@ public:
 		if (ent == m_ignore)
 			return true;
 		IPlayerInfo* player = playerinfomanager->GetPlayerInfo(ent);
-		if (!onLadder(ent))
+		extern EntityClassManager* classManager;
+		if (!BaseEntity(*classManager, ent).isOnLadder())
 			return true;
 		// player is on a ladder - is it this one?
 		const Vector &feet = player->GetAbsOrigin();
@@ -678,7 +676,7 @@ bool ForEachPlayer( Functor &func )
 	{
 		edict_t *ent = engine->PEntityOfEntIndex(i);
 		IPlayerInfo* player = playerinfomanager->GetPlayerInfo(ent);
-		if (player == NULL || !player->IsPlayer() && !player->IsConnected() )
+		if (player == NULL || (!player->IsPlayer() && !player->IsConnected()))
 			continue;
 		if (!func( ent ))
 			return false;

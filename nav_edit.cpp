@@ -13,6 +13,10 @@
 #include "nav_pathfind.h"
 #include "nav_node.h"
 #include "nav_colors.h"
+#include "util/BaseEntity.h"
+#include "util/EntityClassManager.h"
+#include "util/EntityClass.h"
+#include "util/EntityVar.h"
 #include "Color.h"
 #include "tier0/vprof.h"
 #include "collisionutils.h"
@@ -50,6 +54,7 @@ extern IPlayerInfoManager* playerinfomanager;
 extern IServerGameClients* gameclients;
 extern IVEngineServer *engine;
 extern NavAreaVector TheNavAreas;
+extern EntityClassManager *classManager;
 
 Color s_dragSelectionSetAddColor( 100, 255, 100, 96 );
 Color s_dragSelectionSetDeleteColor( 255, 100, 100, 96 );
@@ -165,9 +170,11 @@ void CNavMesh::GetEditVectors( Vector *pos, Vector *forward )
 		AngleVectors( EyeAngles() + player->GetPunchAngle(), forward );
 	}
 #else
-	IPlayerInfo* player = playerinfomanager->GetPlayerInfo(ent);
 	gameclients->ClientEarPosition(ent, pos);
-	AngleVectors( player->GetLastUserCommand().viewangles, forward, nullptr, nullptr );
+	IPlayerInfo* player = playerinfomanager->GetPlayerInfo(ent);
+	if (player != nullptr) {
+		AngleVectors( player->GetLastUserCommand().viewangles, forward, nullptr, nullptr );
+	}
 #endif
 
 #ifdef SERVER_USES_VGUI
@@ -906,7 +913,7 @@ void CNavMesh::DrawEditMode( void )
 				{
 					V_snprintf(buffer, sizeof(buffer), "Ladder #%d (Team %d)\n",
 							m_selectedLadder->GetID(),
-							getTeam(ladderEntity));
+							BaseEntity(*classManager, ladderEntity).getTeam());
 				}
 				else
 				{
@@ -2139,9 +2146,9 @@ void CommandNavCenterInWorld( void )
 	if ( !engine->PEntityOfEntIndex( 0 ) )
 		return;
 	Extent worldExtent;
-	ServerClass *world = UTIL_FindServerClass("CWorld");
-	worldExtent.lo = getClassData<Vector>(engine->PEntityOfEntIndex( 0 ), world, "m_WorldMins");
-	worldExtent.hi = getClassData<Vector>(engine->PEntityOfEntIndex( 0 ), world, "m_WorldMaxs");
+	EntityClass* world = classManager->getClass("CWorld");
+	worldExtent.lo = world->getEntityVar("m_WorldMins").getVar<Vector>(engine->PEntityOfEntIndex( 0 ));
+	worldExtent.hi = world->getEntityVar("m_WorldMaxs").getVar<Vector>(engine->PEntityOfEntIndex( 0 ));
 
 	// Compute the difference, and shift in XY
 	Vector navCenter = ( navExtent.lo + navExtent.hi ) * 0.5f;

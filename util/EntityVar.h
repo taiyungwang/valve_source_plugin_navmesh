@@ -9,6 +9,9 @@
 
 struct edict_t;
 
+/**
+ * Represents a server entity member variable.
+ */
 class EntityVar {
 public:
 
@@ -24,7 +27,11 @@ public:
 	}
 
 	template<typename T>
-	void getVarPtr(T* out, edict_t* ent) const;
+	void getVarPtr(T* out, edict_t* ent) const {
+		*out =
+				*reinterpret_cast<T*>(reinterpret_cast<void *>(reinterpret_cast<char *>(ent)
+						+ offset));
+	}
 
 private:
 

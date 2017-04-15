@@ -13,10 +13,13 @@
 #include <utlstring.h>
 #include <edict.h>
 
-const EntityVar& EntityClass::getEntityVar(const char* varName) {
+EntityVar& EntityClass::getEntityVar(const char* varName) {
 	int i = vars.Find(varName);
 	if (!vars.IsValidIndex(i)) {
 		i = addVar(varName, pClass->m_pTable,  0);
+		if (!vars.IsValidIndex(i)) {
+			throw SimpleException(CUtlString("Variable not found: ") + varName);
+		}
 	}
 	return vars.Element(i);
 
@@ -37,9 +40,12 @@ int EntityClass::addVar(const char* varName, SendTable* pTable,
 			return idx;
 		}
 		if (prop->GetDataTable()) {
-				return addVar(varName, prop->GetDataTable(),
+			int idx = addVar(varName, prop->GetDataTable(),
 						offset + prop->GetOffset());
+			if (idx != vars.InvalidIndex()) {
+				return idx;
+			}
 		}
 	}
-	throw SimpleException(CUtlString("Variable could not be found: ") + varName);
+	return vars.InvalidIndex();
 }
