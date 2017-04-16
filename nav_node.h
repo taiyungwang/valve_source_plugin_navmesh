@@ -24,13 +24,6 @@ void Text(const Vector &origin, const char *text, bool bViewCheck,
 void Cross3D(const Vector &position, float size, int r, int g,
 		int b, bool noDepthTest, float flDuration);
 
-void UTIL_TraceHull( const Vector &vecAbsStart, const Vector &vecAbsEnd, const Vector &hullMin,
-					 const Vector &hullMax,	unsigned int mask, const IHandleEntity *ignore,
-					 int collisionGroup, trace_t *ptr );
-
-void UTIL_TraceHull(const Vector &vecAbsStart, const Vector &vecAbsEnd,
-		const Vector &hullMin, const Vector &hullMax, unsigned int mask,
-		const ITraceFilter& Filter, trace_t *ptr);
 //--------------------------------------------------------------------------------------------------------------
 /**
  * Navigation Nodes.

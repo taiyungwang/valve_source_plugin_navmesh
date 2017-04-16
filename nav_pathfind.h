@@ -335,15 +335,11 @@ bool NavAreaBuildPath( CNavArea *startArea, CNavArea *goalArea, const Vector *go
 
 			// don't backtrack
 			Assert( newArea );
-			if ( newArea == area->GetParent() )
+			if ( newArea == area->GetParent()
+					|| newArea == area // self neighbor?
+					// don't consider blocked areas
+					|| newArea->IsBlocked( teamID, ignoreNavBlockers ) )
 				continue;
-			if ( newArea == area ) // self neighbor?
-				continue;
-
-			// don't consider blocked areas
-			if ( newArea->IsBlocked( teamID, ignoreNavBlockers ) )
-				continue;
-
 			float newCostSoFar = costFunc( newArea, area, ladder, elevator, length );
 
 			// NaNs really mess this function up causing tough to track down hangs. If
@@ -434,15 +430,10 @@ bool NavAreaBuildPath( CNavArea *startArea, CNavArea *goalArea, const Vector *go
 template< typename CostFunctor >
 float NavAreaTravelDistance( CNavArea *startArea, CNavArea *endArea, CostFunctor &costFunc, float maxPathLength = 0.0f )
 {
-	if (startArea == NULL)
+	if (startArea == NULL || endArea == NULL)
 		return -1.0f;
-
-	if (endArea == NULL)
-		return -1.0f;
-
 	if (startArea == endArea)
 		return 0.0f;
-
 	// compute path between areas using given cost heuristic
 	if (NavAreaBuildPath( startArea, endArea, NULL, costFunc, NULL, maxPathLength ) == false)
 		return -1.0f;
@@ -550,12 +541,9 @@ void SearchSurroundingAreas( CNavArea *startArea, const Vector &startPos, Functo
 				for( int i=0; i<count; ++i )
 				{
 					CNavArea *adjArea = area->GetAdjacentArea( (NavDirType)dir, i );
-					if ( options & EXCLUDE_OUTGOING_CONNECTIONS )
-					{
-						if ( !adjArea->IsConnected( area, NUM_DIRECTIONS ) )
-						{
-							continue;	// skip this outgoing connection
-						}
+					if ( (options & EXCLUDE_OUTGOING_CONNECTIONS)
+							&& !adjArea->IsConnected( area, NUM_DIRECTIONS ) ) {
+						continue;	// skip this outgoing connection
 					}
 					
 					AddAreaToOpenList( adjArea, area, startPos, maxRange );
@@ -776,11 +764,7 @@ inline void CollectSurroundingAreas( CUtlVector< CNavArea * > *nearbyAreaVector,
 			if ( area->GetParent() )
 			{
 				float deltaZ = area->GetParent()->ComputeAdjacentConnectionHeightChange( area );
-
-				if ( deltaZ > maxStepUpLimit )
-					continue;
-
-				if ( deltaZ < -maxDropDownLimit )
+				if ( deltaZ > maxStepUpLimit || deltaZ < -maxDropDownLimit )
 					continue;
 			}
 

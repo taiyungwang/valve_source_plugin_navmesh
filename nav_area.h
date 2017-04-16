@@ -13,9 +13,8 @@
 #define _NAV_AREA_H_
 
 #include "nav_ladder.h"
+#include "CountDownTimer.h"
 #include <networkvar.h>
-#include <eiface.h>
-#include <iplayerinfo.h>
 #include <utlvector.h>
 #include <shareddefs.h>
 #include <platform.h>
@@ -35,20 +34,15 @@ inline void DebuggerBreakOnNaN_StagingOnly( float val )
 #define DebuggerBreakOnNaN_StagingOnly( _val )
 #endif
 
-
 class CFuncElevator;
 class CFuncNavPrerequisite;
 class CFuncNavCost;
 class KeyValues;
-class CNavLadder;
 class CUtlBuffer;
 class CNavArea;
 class CNavNode;
 class CNavMesh;
 struct Extent;
-
-void UTIL_TraceLine( const Vector& vecAbsStart, const Vector& vecAbsEnd, unsigned int mask,
-					 ITraceFilter *pFilter, trace_t *ptr );
 
 inline bool FStrEq(const char *sz1, const char *sz2)
 {
@@ -56,43 +50,7 @@ inline bool FStrEq(const char *sz1, const char *sz2)
 }
 
 template < typename Functor >
-bool ForEachActor( Functor &func )
-{
-	// iterate all non-bot players
-	extern IPlayerInfoManager* playerinfomanager;
-	for( int i=1; i<=playerinfomanager->GetGlobalVars()->maxClients; ++i )
-	{
-		extern IVEngineServer* engine;
-		edict_t *ent = engine->PEntityOfEntIndex(i);
-		if (ent == nullptr) {
-			continue;
-		}
-		extern IPlayerInfoManager *playerinfomanager;
-		IPlayerInfo* player = playerinfomanager->GetPlayerInfo(ent);
-		if (player == NULL || !player->IsPlayer() || !player->IsConnected())
-			continue;
-#ifdef NEXT_BOT
-		// skip bots - ForEachCombatCharacter will catch them
-		INextBot *bot = player->MyNextBotPointer();
-		if ( bot )
-		{
-			continue;
-		}
-#endif // NEXT_BOT
-
-		if ( !func( ent ) )
-		{
-			return false;
-		}
-	}
-
-#ifdef NEXT_BOT
-	// iterate all NextBots
-	return TheNextBots().ForEachCombatCharacter( func );
-#else
-	return true;
-#endif // NEXT_BOT
-}
+bool ForEachActor( Functor &func );
 
 /**
  * TODO:
@@ -102,71 +60,6 @@ static bool UTIL_IsCommandIssuedByServerAdmin() {
 }
 
 const char *UTIL_VarArgs( const char *format, ... );
-
-/**
- * Simple class for counting down a short interval of time.
- * Upon creation, the timer is invalidated.  Invalidated countdown timers are considered to have elapsed.
- */
-class CountdownTimer
-{
-public:
-	CountdownTimer( void )
-	{
-		m_timestamp = -1.0f;
-		m_duration = 0.0f;
-	}
-
-	void Reset( void )
-	{
-		m_timestamp = Now() + m_duration;
-	}
-
-	void Start( float duration )
-	{
-		m_timestamp = Now() + duration;
-		m_duration = duration;
-	}
-
-	void Invalidate( void )
-	{
-		m_timestamp = -1.0f;
-	}
-
-	bool HasStarted( void ) const
-	{
-		return (m_timestamp > 0.0f);
-	}
-
-	bool IsElapsed( void ) const
-	{
-		return (Now() > m_timestamp);
-	}
-
-	float GetElapsedTime( void ) const
-	{
-		return Now() - m_timestamp + m_duration;
-	}
-
-	float GetRemainingTime( void ) const
-	{
-		return (m_timestamp - Now());
-	}
-
-	/// return original countdown time
-	float GetCountdownDuration( void ) const
-	{
-		return (m_timestamp > 0.0f) ? m_duration : 0.0f;
-	}
-
-private:
-	float m_duration;
-	float m_timestamp;
-	virtual float Now( void ) const {
-		// work-around since client header doesn't like inlined gpGlobals->curtime
-		extern IPlayerInfoManager* playerinfomanager;
-		return playerinfomanager->GetGlobalVars()->curtime;
-	}
-};
 
 class CNavVectorNoEditAllocator
 {
@@ -1016,13 +909,6 @@ inline void CNavArea::RemoveFromClosedList( void )
 }
 
 //--------------------------------------------------------------------------------------------------------------
-inline void CNavArea::SetClearedTimestamp( int teamID )
-{
-	extern IPlayerInfoManager* playerinfomanager;
-	m_clearedTimestamp[ teamID % MAX_NAV_TEAMS ] = playerinfomanager->GetGlobalVars()->curtime;
-}
-
-//--------------------------------------------------------------------------------------------------------------
 inline float CNavArea::GetClearedTimestamp( int teamID ) const
 { 
 	return m_clearedTimestamp[ teamID % MAX_NAV_TEAMS ];
@@ -1033,25 +919,6 @@ inline float CNavArea::GetEarliestOccupyTime( int teamID ) const
 {
 	return m_earliestOccupyTime[ teamID % MAX_NAV_TEAMS ];
 }
-
-
-//--------------------------------------------------------------------------------------------------------------
-inline bool CNavArea::IsDamaging( void ) const
-{
-	extern IPlayerInfoManager* playerinfomanager;
-	return ( playerinfomanager->GetGlobalVars()->tickcount <= m_damagingTickCount );
-}
-
-
-//--------------------------------------------------------------------------------------------------------------
-inline void CNavArea::MarkAsDamaging( float duration )
-{
-	extern IPlayerInfoManager* playerinfomanager;
-	CGlobalVars *gpGlobals = playerinfomanager->GetGlobalVars();
-	m_damagingTickCount = gpGlobals->tickcount
-			+ TIME_TO_TICKS(duration);
-}
-
 
 //--------------------------------------------------------------------------------------------------------------
 inline bool CNavArea::HasAvoidanceObstacle( float maxObstructionHeight ) const
@@ -1066,44 +933,6 @@ inline float CNavArea::GetAvoidanceObstacleHeight( void ) const
 	return m_avoidanceObstacleHeight;
 }
 
-
-//--------------------------------------------------------------------------------------------------------------
-inline bool CNavArea::IsVisible( const Vector &eye, Vector *visSpot ) const
-{
-	Vector corner;
-	trace_t result;
-	CTraceFilterNoNPCsOrPlayer traceFilter( NULL, COLLISION_GROUP_NONE );
-	const float offset = 0.75f * HumanHeight;
-
-	// check center first
-	UTIL_TraceLine( eye, GetCenter() + Vector( 0, 0, offset ), MASK_BLOCKLOS_AND_NPCS|CONTENTS_IGNORE_NODRAW_OPAQUE, &traceFilter, &result );
-	if (result.fraction == 1.0f)
-	{
-		// we can see this area
-		if (visSpot)
-		{
-			*visSpot = GetCenter();
-		}
-		return true;
-	}
-
-	for( int c=0; c<NUM_CORNERS; ++c )
-	{
-		corner = GetCorner( (NavCornerType)c );
-		UTIL_TraceLine( eye, corner + Vector( 0, 0, offset ), MASK_BLOCKLOS_AND_NPCS|CONTENTS_IGNORE_NODRAW_OPAQUE, &traceFilter, &result );
-		if (result.fraction == 1.0f)
-		{
-			// we can see this area
-			if (visSpot)
-			{
-				*visSpot = corner;
-			}
-			return true;
-		}
-	}
-
-	return false;
-}
 
 #ifndef DEBUG_AREA_PLAYERCOUNTS
 inline void CNavArea::IncrementPlayerCount( int teamID, int entIndex )

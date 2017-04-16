@@ -14,9 +14,11 @@
 
 #include "nav_area.h"
 #include "nav_node.h"
+#include "util/EntityUtils.h"
+#include "util/UtilTrace.h"
 #include <ivdebugoverlay.h>
-#include <iplayerinfo.h>
 #include <eiface.h>
+#include <iplayerinfo.h>
 #include <vprof.h>
 #include <filesystem.h>
 #include <utlbuffer.h>
@@ -3327,4 +3329,10 @@ void CNavMesh::EndVisibilityComputations( void )
 	}
 
 	Msg( "NavMesh Visibility List Lengths:  min = %d, avg = %d, max = %d\n", minVisLength, avgVisLength, maxVisLength );
+}
+
+//--------------------------------------------------------------------------------------------------------------
+inline unsigned int CNavMesh::GetGenerationTraceMask( void ) const
+{
+	return MASK_NPCSOLID_BRUSHONLY;
 }

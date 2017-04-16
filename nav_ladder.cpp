@@ -14,6 +14,7 @@
 #include "nav_mesh.h"
 #include "util/BaseEntity.h"
 #include "util/EntityClassManager.h"
+#include "util/UtilTrace.h"
 #include <gametrace.h>
 #include <eiface.h>
 #include <convar.h>

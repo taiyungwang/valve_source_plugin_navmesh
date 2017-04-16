@@ -12,7 +12,8 @@
 #ifndef NAV_ENTITIES_H
 #define NAV_ENTITIES_H
 
-#include "nav_area.h"
+#include "CountDownTimer.h"
+#include "util/Handle.h"
 #include <fmtstr.h>
 #include <string_t.h>
 #include <utlvector.h>
@@ -20,6 +21,8 @@
 #include <shareddefs.h>
 
 class CNavMesh;
+class CNavArea;
+struct edict_t;
 struct inputdata_t;
 
 //-----------------------------------------------------------------------------------------------------
@@ -101,22 +104,7 @@ public:
 	void InputBlockNav( inputdata_t &inputdata );
 	void InputUnblockNav( inputdata_t &inputdata );
 
-	inline bool IsBlockingNav( int teamNumber ) const
-	{
-		if ( teamNumber == TEAM_ANY )
-		{
-			bool isBlocked = false;
-			for ( int i=0; i<MAX_NAV_TEAMS; ++i )
-			{
-				isBlocked |= m_isBlockingNav[ i ];
-			}
-
-			return isBlocked;
-		}
-
-		teamNumber = teamNumber % MAX_NAV_TEAMS;
-		return m_isBlockingNav[ teamNumber ];
-	}
+	bool IsBlockingNav( int teamNumber ) const;
 
 	int DrawDebugTextOverlays( void );
 
@@ -133,7 +121,7 @@ private:
 
 	void BlockNav( void );
 	void UnblockNav( void );
-	bool m_isBlockingNav[MAX_NAV_TEAMS];
+	bool m_isBlockingNav[2];
 	int m_blockedTeamNumber;
 	bool m_bDisabled;
 	Vector m_CachedMins, m_CachedMaxs;

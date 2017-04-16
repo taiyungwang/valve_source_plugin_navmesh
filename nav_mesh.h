@@ -1320,14 +1320,6 @@ inline int CNavMesh::WorldToGridY( float wy ) const
 	return y;
 }
 
-
-//--------------------------------------------------------------------------------------------------------------
-inline unsigned int CNavMesh::GetGenerationTraceMask( void ) const
-{
-	return MASK_NPCSOLID_BRUSHONLY;
-}
-
-
 //--------------------------------------------------------------------------------------------------------------
 //
 // Function prototypes

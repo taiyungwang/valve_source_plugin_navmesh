@@ -15,12 +15,16 @@
 #include "viewport_panel_names.h"
 #include "util/EntityClassManager.h"
 #include "util/BaseEntity.h"
+#include "util/EntityUtils.h"
+#include "util/UtilTrace.h"
 #include <eiface.h>
 #include <worldsize.h>
+#include <iservernetworkable.h>
 #include <iplayerinfo.h>
 
 //#include "terror/TerrorShared.h"
 #include "fmtstr.h"
+
 
 #ifdef TERROR
 #include "func_simpleladder.h"
@@ -63,10 +67,10 @@ Vector NavTraceMaxs(0.45, 0.45, HumanCrouchHeight);
 
 const float MaxTraversableHeight = StepHeight; // max internal obstacle height that can occur between nav nodes and safely disregarded
 const float MinObstacleAreaWidth = 10.0f; // min width of a nav area we will generate on top of an obstacle
+static CUtlVector<edict_t*> ladders;
 
 extern IVEngineServer* engine;
 extern IGameEventManager2 *gameeventmanager;
-extern IPlayerInfoManager *playerinfomanager;
 extern CGlobalVars *gpGlobals;
 extern CNavMesh* TheNavMesh;
 extern NavAreaVector TheNavAreas;
@@ -186,13 +190,20 @@ edict_t* findEntityByClassName(const char* className, edict_t* startEnt =
 void CNavMesh::BuildLadders(void) {
 	// remove any left-over ladders
 	DestroyLadders();
-	Vector mins, maxs;
+	ladders.RemoveAll();
+	/**
+	 * TODO: figure out how to find ladders before sample step
 	for (edict_t *ladder = findEntityByMoveType(MOVETYPE_LADDER);
 			ladder != nullptr;
 			ladder = findEntityByMoveType(MOVETYPE_LADDER, ladder)) {
-		ladder->GetCollideable()->WorldSpaceSurroundingBounds(&mins, &maxs);
-		CreateLadder(mins, maxs, 0.0f);
+		ICollideable* coll = ladder->GetCollideable();
+		if (coll != nullptr) {
+			ladders.AddToTail(ladder);
+			Vector mins = coll->OBBMins(), maxs = coll->OBBMaxs();
+			TheNavMesh->CreateLadder(mins, maxs, 0.0f);
+		}
 	}
+	 */
 }
 
 //--------------------------------------------------------------------------------------------------------------

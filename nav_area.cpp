@@ -15,6 +15,7 @@
 #include "nav_node.h"
 #include "nav_entities.h"
 #include "nav_colors.h"
+#include "util/EntityUtils.h"
 #include <eiface.h>
 #include <Color.h>
 #include <iplayerinfo.h>
@@ -27,6 +28,7 @@
 #include <vprof.h>
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
+#include "util/UtilTrace.h"
 
 extern void HintMessageToAllPlayers( const char *message );
 extern IVDebugOverlay* debugoverlay;
@@ -66,20 +68,45 @@ Color s_selectedSetBorderColor( 100, 100, 0, 255 );
 Color s_dragSelectionSetBorderColor( 50, 50, 50, 255 );
 
 
-
-inline void UTIL_TraceLine( const Vector& vecAbsStart, const Vector& vecAbsEnd, unsigned int mask,
-					 ITraceFilter *pFilter, trace_t *ptr )
+template < typename Functor >
+bool ForEachActor( Functor &func )
 {
-	Ray_t ray;
-	ray.Init( vecAbsStart, vecAbsEnd );
-	extern IEngineTrace *enginetrace;
-	enginetrace->TraceRay( ray, mask, pFilter, ptr );
-	extern ConVar r_visualizetraces;
-	if( r_visualizetraces.GetBool() )
+	// iterate all non-bot players
+	for( int i=1; i<=playerinfomanager->GetGlobalVars()->maxClients; ++i )
 	{
-		debugoverlay->AddLineOverlay( ptr->startpos, ptr->endpos, 255, 0, 0, true, -1.0f );
+		extern IVEngineServer* engine;
+		edict_t *ent = engine->PEntityOfEntIndex(i);
+		if (ent == nullptr) {
+			continue;
+		}
+		IPlayerInfo* player = playerinfomanager->GetPlayerInfo(ent);
+		if (player == NULL || !player->IsPlayer() || !player->IsConnected())
+			continue;
+#ifdef NEXT_BOT
+		// skip bots - ForEachCombatCharacter will catch them
+		INextBot *bot = player->MyNextBotPointer();
+		if ( bot )
+		{
+			continue;
+		}
+#endif // NEXT_BOT
+
+		if ( !func( ent ) )
+		{
+			return false;
+		}
 	}
+
+#ifdef NEXT_BOT
+	// iterate all NextBots
+	return TheNextBots().ForEachCombatCharacter( func );
+#else
+	return true;
+#endif // NEXT_BOT
 }
+
+template
+bool ForEachActor( EditDestroyNotification &func );
 
 static void SelectedSetColorChaged( IConVar *var, const char *pOldValue, float flOldValue )
 {
@@ -107,8 +134,19 @@ static void SelectedSetColorChaged( IConVar *var, const char *pOldValue, float f
 		(*color)[3] = a;
 	}
 }
+
 ConVar nav_selected_set_color( "nav_selected_set_color", "255 255 200 96", FCVAR_CHEAT, "Color used to draw the selected set background while editing.", false, 0.0f, false, 0.0f, SelectedSetColorChaged );
 ConVar nav_selected_set_border_color( "nav_selected_set_border_color", "100 100 0 255", FCVAR_CHEAT, "Color used to draw the selected set borders while editing.", false, 0.0f, false, 0.0f, SelectedSetColorChaged );
+
+
+float CountdownTimer::Now( void ) const {
+	// work-around since client header doesn't like inlined gpGlobals->curtime
+	return playerinfomanager->GetGlobalVars()->curtime;
+}
+
+void Extent::Init(edict_t *entity) {
+	entity->GetCollideable()->WorldSpaceSurroundingBounds(&lo, &hi);
+}
 
 //--------------------------------------------------------------------------------------------------------------
 
@@ -260,6 +298,56 @@ CNavArea::CNavArea( unsigned int place )
 	m_funcNavCostVector.RemoveAll();
 
 	m_nVisTestCounter = (uint32)-1;
+}
+
+//--------------------------------------------------------------------------------------------------------------
+inline void CNavArea::MarkAsDamaging( float duration )
+{
+	CGlobalVars *gpGlobals = playerinfomanager->GetGlobalVars();
+	m_damagingTickCount = gpGlobals->tickcount
+			+ TIME_TO_TICKS(duration);
+}
+
+//--------------------------------------------------------------------------------------------------------------
+inline bool CNavArea::IsVisible( const Vector &eye, Vector *visSpot ) const
+{
+	Vector corner;
+	trace_t result;
+	CTraceFilterNoNPCsOrPlayer traceFilter( NULL, COLLISION_GROUP_NONE );
+	const float offset = 0.75f * HumanHeight;
+
+	// check center first
+	UTIL_TraceLine(eye, GetCenter() + Vector(0, 0, offset),
+			MASK_BLOCKLOS_AND_NPCS | CONTENTS_IGNORE_NODRAW_OPAQUE,
+			&traceFilter, &result);
+	if (result.fraction == 1.0f)
+	{
+		// we can see this area
+		if (visSpot)
+		{
+			*visSpot = GetCenter();
+		}
+		return true;
+	}
+
+	for( int c=0; c<NUM_CORNERS; ++c )
+	{
+		corner = GetCorner( (NavCornerType)c );
+		UTIL_TraceLine(eye, corner + Vector(0, 0, offset),
+				MASK_BLOCKLOS_AND_NPCS | CONTENTS_IGNORE_NODRAW_OPAQUE,
+				&traceFilter, &result);
+		if (result.fraction == 1.0f)
+		{
+			// we can see this area
+			if (visSpot)
+			{
+				*visSpot = corner;
+			}
+			return true;
+		}
+	}
+
+	return false;
 }
 
 //--------------------------------------------------------------------------------------------------------------
@@ -5929,7 +6017,18 @@ Vector CNavArea::GetRandomPoint( void ) const
 	return spot;
 }
 
+//--------------------------------------------------------------------------------------------------------------
+inline void CNavArea::SetClearedTimestamp( int teamID )
+{
+	m_clearedTimestamp[ teamID % MAX_NAV_TEAMS ] = playerinfomanager->GetGlobalVars()->curtime;
+}
 
+
+//--------------------------------------------------------------------------------------------------------------
+inline bool CNavArea::IsDamaging( void ) const
+{
+	return ( playerinfomanager->GetGlobalVars()->tickcount <= m_damagingTickCount );
+}
 
 
 

@@ -12,101 +12,9 @@
 #ifndef _NAV_H_
 #define _NAV_H_
 
-#include <basehandle.h>
 #include <vector.h>
-#include <IEngineTrace.h>
 
-#define WALK_THRU_PROP_DOORS		0x01
-#define WALK_THRU_FUNC_DOORS		0x02
-#define WALK_THRU_DOORS				(WALK_THRU_PROP_DOORS | WALK_THRU_FUNC_DOORS)
-#define WALK_THRU_BREAKABLES		0x04
-#define WALK_THRU_TOGGLE_BRUSHES	0x08
-#define WALK_THRU_PROP_DOORS		0x01
-#define WALK_THRU_FUNC_DOORS		0x02
-#define WALK_THRU_DOORS				(WALK_THRU_PROP_DOORS | WALK_THRU_FUNC_DOORS)
-#define WALK_THRU_EVERYTHING		(WALK_THRU_DOORS | WALK_THRU_BREAKABLES | WALK_THRU_TOGGLE_BRUSHES)
-
-
-// -------------------------------------------------------------------------------------------------- //
-// CHandle.
-// -------------------------------------------------------------------------------------------------- //
-template<class T>
-class CHandle: public CBaseHandle {
-public:
-
-	CHandle() {
-
-	}
-
-	CHandle(int iEntry, int iSerialNumber) {
-		Init(iEntry, iSerialNumber);
-
-	}
-
-	CHandle(const CBaseHandle &handle) :
-			CBaseHandle(handle) {
-
-	}
-	CHandle(T *pVal) {
-		Term();
-		Set(pVal);
-	}
-
-	// The index should have come from a call to ToInt(). If it hasn't, you're in trouble.
-	static CHandle<T> FromIndex(int index) {
-		CHandle<T> ret;
-		ret.m_Index = index;
-		return ret;
-	}
-
-	T* Get() const {
-		return (T*)CBaseHandle::Get();
-	}
-
-	void Set(const T* pVal) {
-		CBaseHandle::Set(reinterpret_cast<const IHandleEntity*>(pVal));
-	}
-	operator T*() {
-		return Get();
-	}
-
-	operator T*() const {
-		return Get();
-	}
-
-	bool operator !() const {
-		return !Get();
-	}
-
-	bool operator==(T *val) const {
-		return Get() == val;
-	}
-
-	bool operator!=(T *val) const {
-		return Get() != val;
-	}
-
-	const CBaseHandle& operator=(const T *val) {
-		Set (val);
-		return *this;
-	}
-
-	T* operator->() const {
-		return Get();
-	}
-};
-
-class CFuncBrush;
-class ServerClass;
 struct edict_t;
-
-
-void UTIL_Trace(const Ray_t& ray, unsigned int mask,
-		const ITraceFilter& filter, trace_t *ptr);
-
-edict_t *EntityFromEntityHandle(IHandleEntity *pHandleEntity);
-
-bool FClassnameIs(edict_t *pEntity, const char *szClassname);
 
 /**
  * Below are several constants used by the navigation system.
@@ -484,64 +392,7 @@ inline float RoundToUnits( float val, float unit )
 	return (float)( unit * ( ((int)val) / (int)unit ) );
 }
 
-typedef bool (*ShouldHitFunc_t)( IHandleEntity *pHandleEntity, int contentsMask );
 
-class CTraceFilterSimple : public CTraceFilter
-{
-public:
-	// It does have a base, but we'll never network anything below here..
-
-	CTraceFilterSimple(const IHandleEntity *passentity, int collisionGroup,
-			ShouldHitFunc_t pExtraShouldHitCheckFn = NULL);
-	virtual bool ShouldHitEntity( IHandleEntity *pHandleEntity, int contentsMask );
-	virtual void SetPassEntity( const IHandleEntity *pPassEntity ) { m_pPassEnt = pPassEntity; }
-	virtual void SetCollisionGroup( int iCollisionGroup ) { m_collisionGroup = iCollisionGroup; }
-
-	const IHandleEntity *GetPassEntity( void ){ return m_pPassEnt;}
-
-private:
-	const IHandleEntity *m_pPassEnt;
-	int m_collisionGroup;
-	ShouldHitFunc_t m_pExtraShouldHitCheckFunction;
-
-};
-
-//--------------------------------------------------------------------------------------------------------------
-/**
- * Return true if given entity can be ignored when moving
- */
-bool IsEntityWalkable( edict_t *entity, unsigned int flags );
-
-class CTraceFilterNoNPCsOrPlayer : public CTraceFilterSimple
-{
-public:
-	CTraceFilterNoNPCsOrPlayer( const IHandleEntity *passentity, int collisionGroup )
-		: CTraceFilterSimple( passentity, collisionGroup )
-	{
-	}
-
-	virtual bool ShouldHitEntity( IHandleEntity *pHandleEntity, int contentsMask );
-};
-
-//--------------------------------------------------------------------------------------------------------------
-/**
- *  Trace filter that ignores players, NPCs, and objects that can be walked through
- */
-class CTraceFilterWalkableEntities : public CTraceFilterNoNPCsOrPlayer
-{
-public:
-	CTraceFilterWalkableEntities( const IHandleEntity *passentity, int collisionGroup, unsigned int flags )
-		: CTraceFilterNoNPCsOrPlayer( passentity, collisionGroup ), m_flags( flags )
-	{
-	}
-
-	virtual bool ShouldHitEntity( IHandleEntity *pServerEntity, int contentsMask );
-
-private:
-	unsigned int m_flags;
-};
-
-
-extern bool IsWalkableTraceLineClear( const Vector &from, const Vector &to, unsigned int flags = 0 );
+//extern bool IsWalkableTraceLineClear( const Vector &from, const Vector &to, unsigned int flags = 0 );
 
 #endif // _NAV_H_

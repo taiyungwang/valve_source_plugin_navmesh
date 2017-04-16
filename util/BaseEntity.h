@@ -25,6 +25,14 @@ public:
 		return get<int>("movetype");
 	}
 
+	int getHealth() {
+		return get<int>("m_iHealth");
+	}
+
+	int getMaxHealth() {
+		return get<int>("m_iMaxHealth");
+	}
+
 	bool isOnLadder();
 
 	unsigned char getRenderMode() {

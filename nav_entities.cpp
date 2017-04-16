@@ -13,10 +13,14 @@
 
 #include "nav_mesh.h"
 #include "nav_area.h"
+#include "util/UtilTrace.h"
+#include <eiface.h>
+#include <iplayerinfo.h>
 #include <collisionutils.h>
 #include <ivdebugoverlay.h>
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
+
 
 extern IPlayerInfoManager* playerinfomanager;
 extern NavAreaVector TheNavAreas;
@@ -316,6 +320,23 @@ float CFuncNavPrefer::GetCostMultiplier( edict_t *who ) const
 
 
 CUtlLinkedList<CFuncNavBlocker *> CFuncNavBlocker::gm_NavBlockers;
+
+inline bool CFuncNavBlocker::IsBlockingNav( int teamNumber ) const
+{
+	if ( teamNumber == TEAM_ANY )
+	{
+		bool isBlocked = false;
+		for ( int i=0; i<MAX_NAV_TEAMS; ++i )
+		{
+			isBlocked |= m_isBlockingNav[ i ];
+		}
+
+		return isBlocked;
+	}
+
+	teamNumber = teamNumber % MAX_NAV_TEAMS;
+	return m_isBlockingNav[ teamNumber ];
+}
 
 //-----------------------------------------------------------------------------------------------------
 int CFuncNavBlocker::DrawDebugTextOverlays( void )

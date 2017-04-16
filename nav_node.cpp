@@ -14,6 +14,8 @@
 #include "nav_colors.h"
 #include "nav_mesh.h"
 #include "nav.h"
+#include "util/EntityUtils.h"
+#include "util/UtilTrace.h"
 #include "tier1/utlhash.h"
 #include "tier1/generichash.h"
 #include <eiface.h>
@@ -31,22 +33,6 @@ unsigned int CNavNode::m_nextID = 1;
 extern Vector NavTraceMins;
 extern Vector NavTraceMaxs;
 extern IVDebugOverlay* debugoverlay;
-
-void UTIL_TraceHull(const Vector &vecAbsStart, const Vector &vecAbsEnd,
-		const Vector &hullMin, const Vector &hullMax, unsigned int mask,
-		const ITraceFilter &filter, trace_t *ptr) {
-	Ray_t ray;
-	ray.Init(vecAbsStart, vecAbsEnd, hullMin, hullMax);
-	UTIL_Trace(ray, mask, filter, ptr);
-}
-
-void UTIL_TraceHull( const Vector &vecAbsStart, const Vector &vecAbsEnd, const Vector &hullMin,
-					 const Vector &hullMax,	unsigned int mask, const IHandleEntity *ignore,
-					 int collisionGroup, trace_t *ptr )
-{
-	UTIL_TraceHull(vecAbsStart, vecAbsEnd, hullMin, hullMax, mask,
-			CTraceFilterSimple( ignore, collisionGroup ), ptr);
-}
 
 //--------------------------------------------------------------------------------------------------------------
 // Node hash

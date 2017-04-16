@@ -15,14 +15,15 @@
 #include "nav_colors.h"
 #include "util/BaseEntity.h"
 #include "util/EntityClassManager.h"
-#include "util/EntityClass.h"
-#include "util/EntityVar.h"
+#include "util/EntityUtils.h"
 #include "Color.h"
 #include "tier0/vprof.h"
 #include "collisionutils.h"
 #include <ivdebugoverlay.h>
 #include <eiface.h>
 #include <iplayerinfo.h>
+
+#include "util/UtilTrace.h"
 #ifdef TERROR
 #include "TerrorShared.h"
 #endif
@@ -340,11 +341,9 @@ bool CNavMesh::FindActiveNavArea( void )
 	}
 
 	Vector to = from + maxRange * dir;
-
 	trace_t result;
 	CTraceFilterWalkableEntities filter( ent->GetIServerEntity(), COLLISION_GROUP_NONE, WALK_THRU_EVERYTHING );
 	UTIL_TraceLine( from, to, (nav_solid_props.GetBool()) ? MASK_NPCSOLID : MASK_NPCSOLID_BRUSHONLY, &filter, &result );
-
 	if (result.fraction != 1.0f)
 	{
 		if ( !IsEditMode( CREATING_AREA ) )
@@ -355,22 +354,13 @@ bool CNavMesh::FindActiveNavArea( void )
 				m_climbableSurface = (result.contents & CONTENTS_LADDER) != 0;
 			}
 			m_surfaceNormal = result.plane.normal;
-
-			if ( m_climbableSurface )
-			{
-				// check if we're on the same plane as the original point when we're building a ladder
-				if ( IsEditMode( CREATING_LADDER ) )
-				{
-					if ( m_surfaceNormal != m_ladderNormal )
-					{
-						m_climbableSurface = false;
-					}
-				}
-
-				if ( m_surfaceNormal.z > 0.9f )
-				{
-					m_climbableSurface = false; // don't try to build ladders on flat ground
-				}
+			if ( m_climbableSurface
+					// check if we're on the same plane as the original point when we're building a ladder
+					&& ((IsEditMode(CREATING_LADDER)
+							&& m_surfaceNormal != m_ladderNormal)
+							// don't try to build ladders on flat ground
+							|| m_surfaceNormal.z > 0.9f)) {
+				m_climbableSurface = false;
 			}
 		}
 

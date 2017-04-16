@@ -12,12 +12,14 @@
 #define _NAV_LADDER_H_
 
 #include "nav.h"
+#include "util/Handle.h"
+#include <utlvector.h>
 
 class CUtlBuffer;
 class CNavArea;
 class CNavMesh;
 class IPlayerInfo;
-
+struct edict_t;
 
 
 typedef CHandle<edict_t> EHandle;
@@ -28,9 +30,6 @@ edict_t* findEntityByMoveTypeNearest(unsigned char type, const Vector& pos,
 IPlayerInfo *UTIL_GetListenServerHost( void );
 
 edict_t* UTIL_GetListenServerEnt();
-
-void UTIL_TraceLine( const Vector& vecAbsStart, const Vector& vecAbsEnd, unsigned int mask,
-					 const IHandleEntity *ignore, int collisionGroup, trace_t *ptr );
 
 //--------------------------------------------------------------------------------------------------------------
 /**

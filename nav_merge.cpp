@@ -7,6 +7,8 @@
 #include "fmtstr.h"
 #include "tier0/vprof.h"
 #include "utldict.h"
+#include <eiface.h>
+#include <iplayerinfo.h>
 #include <KeyValues.h>
 #include <filesystem.h>
 // memdbgon must be the last include file in a .cpp file!!!
