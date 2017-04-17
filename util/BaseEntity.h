@@ -22,7 +22,7 @@ public:
 	}
 
 	int getMoveType() {
-		return get<int>("movetype");
+		return get<int>("movetype") & 5;
 	}
 
 	int getHealth() {

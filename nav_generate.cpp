@@ -191,19 +191,19 @@ void CNavMesh::BuildLadders(void) {
 	// remove any left-over ladders
 	DestroyLadders();
 	ladders.RemoveAll();
-	/**
-	 * TODO: figure out how to find ladders before sample step
-	for (edict_t *ladder = findEntityByMoveType(MOVETYPE_LADDER);
+	// this only works for HL2MP
+	const char* name = "func_useableladder";
+	for (edict_t *ladder = findEntityByClassName(name);
 			ladder != nullptr;
-			ladder = findEntityByMoveType(MOVETYPE_LADDER, ladder)) {
+			ladder = findEntityByClassName(name, ladder)) {
 		ICollideable* coll = ladder->GetCollideable();
 		if (coll != nullptr) {
 			ladders.AddToTail(ladder);
-			Vector mins = coll->OBBMins(), maxs = coll->OBBMaxs();
+			Vector mins, maxs;
+			coll->WorldSpaceTriggerBounds(&mins, &maxs);
 			TheNavMesh->CreateLadder(mins, maxs, 0.0f);
 		}
 	}
-	 */
 }
 
 //--------------------------------------------------------------------------------------------------------------
@@ -3267,6 +3267,24 @@ void CNavMesh::CreateNavAreasFromNodes(void) {
 			ladder->ConnectGeneratedLadder(0.0f);
 		}
 	}
+}
+
+edict_t* findEntityByClassNameNearest(const char* name, const Vector& pos,
+		float maxRadius) {
+	float mindist = pow(maxRadius, 2);
+	if (mindist == 0) {
+		mindist = MAX_TRACE_LENGTH * MAX_TRACE_LENGTH;
+	}
+	edict_t* ent = findEntityByClassName(name);
+	for (; ent != nullptr; ent = findEntityByClassName(name, ent)) {
+		float dist =
+				(pos
+						- ent->GetIServerEntity()->GetCollideable()->GetCollisionOrigin()).LengthSqr();
+		if (dist < mindist) {
+			mindist = dist;
+		}
+	}
+	return ent;
 }
 
 edict_t* findEntityByMoveTypeNearest(unsigned char type, const Vector& pos,

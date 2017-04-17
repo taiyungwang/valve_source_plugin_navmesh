@@ -20,6 +20,7 @@
 #include "tier0/vprof.h"
 #include "collisionutils.h"
 #include <ivdebugoverlay.h>
+#include <vphysics_interface.h>
 #include <eiface.h>
 #include <iplayerinfo.h>
 
@@ -54,6 +55,7 @@ extern ConVar nav_slope_limit;
 extern IPlayerInfoManager* playerinfomanager;
 extern IServerGameClients* gameclients;
 extern IVEngineServer *engine;
+extern IPhysicsSurfaceProps *physprops;
 extern NavAreaVector TheNavAreas;
 extern EntityClassManager *classManager;
 
@@ -348,11 +350,9 @@ bool CNavMesh::FindActiveNavArea( void )
 	{
 		if ( !IsEditMode( CREATING_AREA ) )
 		{
-			m_climbableSurface = result.plane.normal.z > nav_slope_limit.GetFloat();
-			if ( !m_climbableSurface )
-			{
-				m_climbableSurface = (result.contents & CONTENTS_LADDER) != 0;
-			}
+			surfacegameprops_t surfProps = physprops->GetSurfaceData( result.surface.surfaceProps )->game;
+			m_climbableSurface = surfProps.climbable != 0
+					|| (result.contents & CONTENTS_LADDER) != 0;
 			m_surfaceNormal = result.plane.normal;
 			if ( m_climbableSurface
 					// check if we're on the same plane as the original point when we're building a ladder
@@ -515,22 +515,15 @@ bool CNavMesh::FindLadderCorners( Vector *corner1, Vector *corner2, Vector *corn
 
 
 //--------------------------------------------------------------------------------------------------------------
-bool CheckForClimbableSurface( const Vector &start, const Vector &end )
-{
+bool CheckForClimbableSurface(const Vector &start, const Vector &end) {
 	trace_t result;
-	UTIL_TraceLine( start, end, MASK_NPCSOLID_BRUSHONLY, NULL, COLLISION_GROUP_NONE, &result );
+	UTIL_TraceLine(start, end, MASK_NPCSOLID_BRUSHONLY, NULL,
+			COLLISION_GROUP_NONE, &result);
+	return result.fraction != 1.0f
+			&& (result.plane.normal.z > nav_slope_limit.GetFloat()
+					|| physprops->GetSurfaceData(result.surface.surfaceProps)->game.climbable != 0
+					|| (result.contents & CONTENTS_LADDER) != 0);
 
-	bool climbableSurface = false;
-	if (result.fraction != 1.0f)
-	{
-		climbableSurface =  result.plane.normal.z > nav_slope_limit.GetFloat();
-		if ( !climbableSurface )
-		{
-			climbableSurface = (result.contents & CONTENTS_LADDER) != 0;
-		}
-	}
-
-	return climbableSurface;
 }
 
 

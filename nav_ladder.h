@@ -27,6 +27,9 @@ typedef CHandle<edict_t> EHandle;
 edict_t* findEntityByMoveTypeNearest(unsigned char type, const Vector& pos,
 		float maxRadius);
 
+edict_t* findEntityByClassNameNearest(const char* name, const Vector& pos,
+		float maxRadius);
+
 IPlayerInfo *UTIL_GetListenServerHost( void );
 
 edict_t* UTIL_GetListenServerEnt();

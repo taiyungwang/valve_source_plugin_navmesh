@@ -507,7 +507,8 @@ void CNavLadder::OnRoundRestart( void )
 //--------------------------------------------------------------------------------------------------------------
 void CNavLadder::FindLadderEntity( void )
 {
-	m_ladderEntity = findEntityByMoveTypeNearest(MOVETYPE_LADDER,
+	// only works for HL2MP
+	m_ladderEntity = findEntityByClassNameNearest("func_useableladder",
 			(m_top + m_bottom) * 0.5f, HalfHumanWidth);
 }
 
