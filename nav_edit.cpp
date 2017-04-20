@@ -51,6 +51,9 @@ ConVar nav_create_area_at_feet( "nav_create_area_at_feet", "0", FCVAR_CHEAT, "An
 
 ConVar nav_drag_selection_volume_zmax_offset( "nav_drag_selection_volume_zmax_offset", "32", FCVAR_REPLICATED, "The offset of the nav drag volume top from center" );
 ConVar nav_drag_selection_volume_zmin_offset( "nav_drag_selection_volume_zmin_offset", "32", FCVAR_REPLICATED, "The offset of the nav drag volume bottom from center" );
+
+// the global singleton interface
+extern CNavMesh *TheNavMesh;
 extern ConVar nav_slope_limit;
 extern IPlayerInfoManager* playerinfomanager;
 extern IServerGameClients* gameclients;
@@ -58,6 +61,8 @@ extern IVEngineServer *engine;
 extern IPhysicsSurfaceProps *physprops;
 extern NavAreaVector TheNavAreas;
 extern EntityClassManager *classManager;
+
+extern bool IsHeightDifferenceValid( float test, float other1, float other2, float other3 );
 
 Color s_dragSelectionSetAddColor( 100, 255, 100, 96 );
 Color s_dragSelectionSetDeleteColor( 255, 100, 100, 96 );

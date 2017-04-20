@@ -14,7 +14,6 @@
 
 #include "nav_ladder.h"
 #include "CountDownTimer.h"
-#include <networkvar.h>
 #include <utlvector.h>
 #include <shareddefs.h>
 #include <platform.h>
@@ -285,7 +284,6 @@ protected:
 class CNavArea : protected CNavAreaCriticalData
 {
 public:
-	DECLARE_CLASS_NOBASE( CNavArea )
 
 	CNavArea( unsigned int place );
 	virtual ~CNavArea();
@@ -556,6 +554,51 @@ public:
 	virtual bool IsCompletelyVisible( const CNavArea *area ) const;			// return true if given area is completely visible from somewhere in this area (very fast)
 	virtual bool IsCompletelyVisibleToTeam( int team ) const;				// return true if given area is completely visible from somewhere in this area by someone on the team (very fast)
 
+
+	static bool notVisible(const AreaBindInfo& info) {
+		return info.attributes == NOT_VISIBLE;
+	}
+
+	static bool completelyVisible(const AreaBindInfo& info) {
+		return (info.attributes & COMPLETELY_VISIBLE) == 0;
+	}
+
+	template<typename Functor1, typename Functor2>
+	bool checkAreaVisibility(Functor1& func1, Functor2& func2) {
+		++s_nCurrVisTestCounter;
+		int i;
+		for (i = 0; i < m_potentiallyVisibleAreas.Count(); ++i) {
+			CNavArea *area = m_potentiallyVisibleAreas[i].area;
+			if (!area)
+				continue;
+			// If this assertion triggers, an area is in here twice!
+			Assert(area->m_nVisTestCounter != s_nCurrVisTestCounter);
+			area->m_nVisTestCounter = s_nCurrVisTestCounter;
+			if (func1(m_potentiallyVisibleAreas[i].attributes))
+				continue;
+			if (!func2(area))
+				return false;
+		}
+		if (!m_inheritVisibilityFrom.area)
+			return true;
+		// for each inherited area
+		CAreaBindInfoArray &inherited =
+				m_inheritVisibilityFrom.area->m_potentiallyVisibleAreas;
+		for (i = 0; i < inherited.Count(); ++i) {
+			if (!inherited[i].area
+			// We may have visited this from m_potentiallyVisibleAreas
+					|| inherited[i].area->m_nVisTestCounter
+							== s_nCurrVisTestCounter)
+				continue;
+			// Theoretically, this shouldn't matter. But, just in case!
+			inherited[i].area->m_nVisTestCounter = s_nCurrVisTestCounter;
+			if (func1(inherited[i].attributes))
+				continue;
+			if (!func2(inherited[i].area))
+				return false;
+		}
+		return true;
+	}
 	//-------------------------------------------------------------------------------------
 	/**
 	 * Apply the functor to all navigation areas that are potentially
@@ -564,53 +607,7 @@ public:
 	template < typename Functor >
 	bool ForAllPotentiallyVisibleAreas( Functor &func )
 	{
-		int i;
-
-		++s_nCurrVisTestCounter;
-
-		for ( i=0; i<m_potentiallyVisibleAreas.Count(); ++i )
-		{
-			CNavArea *area = m_potentiallyVisibleAreas[i].area;
-			if ( !area )
-				continue;
-
-			// If this assertion triggers, an area is in here twice!
-			Assert( area->m_nVisTestCounter != s_nCurrVisTestCounter );
-			area->m_nVisTestCounter = s_nCurrVisTestCounter;
-
-			if ( m_potentiallyVisibleAreas[i].attributes == NOT_VISIBLE )
-				continue;
-			
-			if ( func( area ) == false )
-				return false;
-		}
-
-		// for each inherited area
-		if ( !m_inheritVisibilityFrom.area )
-			return true;
-
-		CAreaBindInfoArray &inherited = m_inheritVisibilityFrom.area->m_potentiallyVisibleAreas;
-
-		for ( i=0; i<inherited.Count(); ++i )
-		{
-			if ( !inherited[i].area )
-				continue;
-
-			// We may have visited this from m_potentiallyVisibleAreas
-			if ( inherited[i].area->m_nVisTestCounter == s_nCurrVisTestCounter )
-				continue;
-
-			// Theoretically, this shouldn't matter. But, just in case!
-			inherited[i].area->m_nVisTestCounter = s_nCurrVisTestCounter;
-
-			if ( inherited[i].attributes == NOT_VISIBLE )
-				continue;
-
-			if ( func( inherited[i].area ) == false )
-				return false;
-		}
-
-		return true;
+		return checkAreaVisibility(notVisible, func);
 	}
 
 	//-------------------------------------------------------------------------------------
@@ -621,53 +618,7 @@ public:
 	template < typename Functor >
 	bool ForAllCompletelyVisibleAreas( Functor &func )
 	{
-		int i;
-
-		++s_nCurrVisTestCounter;
-
-		for ( i=0; i<m_potentiallyVisibleAreas.Count(); ++i )
-		{
-			CNavArea *area = m_potentiallyVisibleAreas[i].area;
-			if ( !area )
-				continue;
-
-			// If this assertion triggers, an area is in here twice!
-			Assert( area->m_nVisTestCounter != s_nCurrVisTestCounter );
-			area->m_nVisTestCounter = s_nCurrVisTestCounter;
-
-			if ( ( m_potentiallyVisibleAreas[i].attributes & COMPLETELY_VISIBLE ) == 0 )
-				continue;
-
-			if ( func( area ) == false )
-				return false;
-		}
-
-		if ( !m_inheritVisibilityFrom.area )
-			return true;
-
-		// for each inherited area
-		CAreaBindInfoArray &inherited = m_inheritVisibilityFrom.area->m_potentiallyVisibleAreas;
-
-		for ( i=0; i<inherited.Count(); ++i )
-		{
-			if ( !inherited[i].area )
-				continue;
-			
-			// We may have visited this from m_potentiallyVisibleAreas
-			if ( inherited[i].area->m_nVisTestCounter == s_nCurrVisTestCounter )
-				continue;
-
-			// Theoretically, this shouldn't matter. But, just in case!
-			inherited[i].area->m_nVisTestCounter = s_nCurrVisTestCounter;
-
-			if ( ( inherited[i].attributes & COMPLETELY_VISIBLE ) == 0 )
-				continue;
-
-			if ( func( inherited[i].area ) == false )
-				return false;
-		}
-
-		return true;
+		return checkAreaVisibility(completelyVisible, func);
 	}
 
 

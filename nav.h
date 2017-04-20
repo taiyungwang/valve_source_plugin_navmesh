@@ -104,7 +104,6 @@ enum NavAttributeType
 	NAV_MESH_NAV_BLOCKER	= 0x80000000				// area is blocked by nav blocker ( Alas, needed to hijack a bit in the attributes to get within a cache line [7/24/2008 tom])
 };
 
-extern NavAttributeType NameToNavAttribute( const char *name );
 
 enum NavDirType
 {
@@ -346,11 +345,11 @@ inline void CornerToVector2D( NavCornerType dir, Vector2D *v )
 {
 	switch( dir )
 	{
-		default: Assert(0);
 		case NORTH_WEST: v->x = -1.0f; v->y = -1.0f; break;
 		case NORTH_EAST: v->x =  1.0f; v->y = -1.0f; break;
 		case SOUTH_EAST: v->x =  1.0f; v->y =  1.0f; break;
 		case SOUTH_WEST: v->x = -1.0f; v->y =  1.0f; break;
+		default: Assert(0);
 	}
 
 	v->NormalizeInPlace();
@@ -363,8 +362,6 @@ inline void GetCornerTypesInDirection( NavDirType dir, NavCornerType *first, Nav
 {
 	switch ( dir )
 	{
-	default:
-		Assert(0);
 	case NORTH:
 		*first = NORTH_WEST;
 		*second = NORTH_EAST;
@@ -381,6 +378,8 @@ inline void GetCornerTypesInDirection( NavDirType dir, NavCornerType *first, Nav
 		*first = NORTH_WEST;
 		*second = SOUTH_WEST;
 		break;
+	default:
+		Assert(0);
 	}
 }
 
@@ -391,8 +390,5 @@ inline float RoundToUnits( float val, float unit )
 	val = val + ((val < 0.0f) ? -unit*0.5f : unit*0.5f);
 	return (float)( unit * ( ((int)val) / (int)unit ) );
 }
-
-
-//extern bool IsWalkableTraceLineClear( const Vector &from, const Vector &to, unsigned int flags = 0 );
 
 #endif // _NAV_H_

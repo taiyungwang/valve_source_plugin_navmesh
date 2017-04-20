@@ -12,12 +12,11 @@
 
 struct edict_t;
 
-edict_t *EntityFromEntityHandle(IHandleEntity *pHandleEntity);
-
-typedef bool (*ShouldHitFunc_t)( IHandleEntity *pHandleEntity, int contentsMask );
 
 class CTraceFilterSimple : public CTraceFilter
 {
+private:
+	typedef bool (*ShouldHitFunc_t)( IHandleEntity *pHandleEntity, int contentsMask );
 public:
 	// It does have a base, but we'll never network anything below here..
 

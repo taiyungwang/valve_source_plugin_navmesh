@@ -27,12 +27,10 @@ inline edict_t *EntityFromEntityHandle(IHandleEntity *pHandleEntity) {
 
 bool CTraceFilterWalkableEntities::ShouldHitEntity(IHandleEntity *pServerEntity,
 		int contentsMask) {
-	if (CTraceFilterNoNPCsOrPlayer::ShouldHitEntity(pServerEntity,
-			contentsMask)) {
-		return (!IsEntityWalkable(EntityFromEntityHandle(pServerEntity),
-				m_flags));
-	}
-	return false;
+	return (CTraceFilterNoNPCsOrPlayer::ShouldHitEntity(pServerEntity,
+			contentsMask))
+			&& !IsEntityWalkable(EntityFromEntityHandle(pServerEntity),
+				m_flags);
 }
 
 CTraceFilterSimple::CTraceFilterSimple(const IHandleEntity *passedict,
@@ -71,10 +69,7 @@ bool StandardFilterRules(IHandleEntity *pHandleEntity, int fContentsMask) {
 bool CTraceFilterSimple::ShouldHitEntity(IHandleEntity *pHandleEntity,
 		int contentsMask) {
 	if (!StandardFilterRules(pHandleEntity, contentsMask)
-			|| (m_pPassEnt && pHandleEntity == m_pPassEnt)) {
-		return false;
-	}
-	if (!pHandleEntity) {
+			|| (m_pPassEnt && pHandleEntity == m_pPassEnt) || !pHandleEntity) {
 		return false;
 	}
 	// Don't test if the game code tells us we should ignore this collision...

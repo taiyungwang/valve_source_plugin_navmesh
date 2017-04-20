@@ -151,36 +151,32 @@ inline CNavArea *findFirstAreaInDirection(const Vector *start, NavDirType dir,
 	return area;
 }
 
-edict_t* findEntityByMoveType(int type, edict_t* startEnt = nullptr) {
+bool hasMoveType(edict_t* ent, int type) {
+	IServerEntity* serverEnt = ent->GetIServerEntity();
+	extern EntityClassManager* classManager;
+	return serverEnt != nullptr && serverEnt->GetBaseEntity() != nullptr
+			&& (BaseEntity(*classManager, ent).getMoveType() & 15) == type;
+}
+
+template<typename T, typename Func>
+edict_t* findEntity(const T type, Func& func, edict_t* startEnt = nullptr) {
 	for (int i = (startEnt == nullptr ? 0 : engine->IndexOfEdict(startEnt) + 1);
 			i < gpGlobals->maxEntities; i++) {
 		edict_t* ent = engine->PEntityOfEntIndex(i);
-		if (ent != nullptr && !ent->IsFree()) {
-			IServerEntity* serverEnt = ent->GetIServerEntity();
-			if (serverEnt != nullptr && serverEnt->GetBaseEntity() != nullptr) {
-				extern EntityClassManager* classManager;
-				if ((BaseEntity(*classManager, ent).getMoveType() & 15)
-						== type) {
-					return ent;
-				}
-			}
+		if (ent != nullptr && !ent->IsFree() && func(ent, type)) {
+			return ent;
 		}
 	}
 	return nullptr;
 }
 
+edict_t* findEntityByMoveType(int type, edict_t* startEnt = nullptr) {
+	return findEntity(type, hasMoveType, startEnt);
+}
+
 edict_t* findEntityByClassName(const char* className, edict_t* startEnt =
 		nullptr) {
-	for (int i = (startEnt == nullptr ? 0 : engine->IndexOfEdict(startEnt) + 1);
-			i < gpGlobals->maxEntities; i++) {
-		edict_t* ent = engine->PEntityOfEntIndex(i);
-		if (ent != nullptr && !ent->IsFree()) {
-			if (FClassnameIs(ent, className)) {
-				return ent;
-			}
-		}
-	}
-	return nullptr;
+	return findEntity(className, FClassnameIs, startEnt);
 }
 
 //--------------------------------------------------------------------------------------------------------------

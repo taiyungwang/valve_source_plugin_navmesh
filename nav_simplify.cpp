@@ -13,6 +13,8 @@
 // NOTE: This has to be the last file included!
 #include "tier0/memdbgon.h"
 
+// the global singleton interface
+extern CNavMesh *TheNavMesh;
 extern ConVar nav_snap_to_grid;
 extern ConVar nav_split_place_on_ground;
 extern ConVar nav_coplanar_slope_limit;

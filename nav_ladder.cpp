@@ -45,7 +45,7 @@ void CNavLadder::Shift( const Vector &shift )
 
 
 
- void CNavLadder::CompressIDs( CNavMesh* TheNaVmesh )
+ void CNavLadder::CompressIDs( CNavMesh* TheNavMesh )
 {
 	m_nextID = 1;
 

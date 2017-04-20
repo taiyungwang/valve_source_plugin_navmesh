@@ -14,6 +14,8 @@
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
+// the global singleton interface
+extern CNavMesh *TheNavMesh;
 extern IFileSystem *filesystem;
 
 //--------------------------------------------------------------------------------------------------------

@@ -20,6 +20,7 @@
 #define _NAV_MESH_H_
 
 #include "nav_area.h"
+#include <convar.h>
 #include <generichash.h>
 #include <GameEventListener.h>
 
@@ -129,8 +130,6 @@ struct NavAttributeLookup
 	NavAttributeType attribute;	
 };
 
-extern NavAttributeLookup TheNavAttributeTable[];
-
 //--------------------------------------------------------------------------------------------------------
 class SelectOverlappingAreas
 {
@@ -235,9 +234,6 @@ private:
 	bool m_hasUnnamedAreas;
 };
 
-extern PlaceDirectory placeDirectory;
-
-
 
 //--------------------------------------------------------------------------------------------------------
 /**
@@ -286,8 +282,8 @@ public:
 	virtual void OnServerActivate( void );								// (EXTEND) invoked when server loads a new map
 	virtual void OnRoundRestart( void );								// invoked when a game round restarts
 	virtual void OnRoundRestartPreEntity( void );						// invoked when a game round restarts, but before entities are deleted and recreated
-	virtual void OnBreakableCreated( CBaseEntity *breakable ) { }		// invoked when a breakable is created
-	virtual void OnBreakableBroken( CBaseEntity *broken ) { }			// invoked when a breakable is broken
+	virtual void OnBreakableCreated( edict_t *breakable ) { }		// invoked when a breakable is created
+	virtual void OnBreakableBroken( edict_t *broken ) { }			// invoked when a breakable is broken
 	virtual void OnAreaBlocked( CNavArea *area );						// invoked when the area becomes blocked
 	virtual void OnAreaUnblocked( CNavArea *area );						// invoked when the area becomes un-blocked
 	virtual void OnAvoidanceObstacleEnteredArea( CNavArea *area );					// invoked when the area becomes obstructed
@@ -481,11 +477,8 @@ public:
 		if (IsSelectedSetEmpty())
 		{
 			CNavArea *area = GetSelectedArea();
-			
-			if (area)
-			{
-				if (func( area ) == false)
-					return false;
+			if (area && !func(area)) {
+				return false;
 			}
 		}
 		else
@@ -493,12 +486,10 @@ public:
 			FOR_EACH_VEC( m_selectedSet, it )
 			{
 				CNavArea *area = m_selectedSet[ it ];
-
-				if (func( area ) == false)
+				if (!func( area ))
 					return false;
 			}
 		}
-		
 		return true;
 	}
 
@@ -515,7 +506,7 @@ public:
 		{
 			CNavArea *area = TheNavAreas[ it ];
 
-			if (func( area ) == false)
+			if (!func( area ))
 				return false;
 		}
 
@@ -531,7 +522,7 @@ public:
 		{
 			const CNavArea *area = TheNavAreas[ it ];
 
-			if (func( area ) == false)
+			if (!func( area ))
 				return false;
 		}
 
@@ -592,11 +583,9 @@ public:
 					// mark as visited
 					area->m_nearNavSearchMarker = searchMarker;
 					area->GetExtent( &areaExtent );
-
-					if ( extent.IsOverlapping( areaExtent ) )
-					{
-						if ( func( area ) == false )
-							return false;
+					if ( extent.IsOverlapping( areaExtent )
+							&& !func( area )) {
+						return false;
 					}
 				}
 			}
@@ -694,7 +683,6 @@ public:
 		{
 			if ( x < 0 || x >= m_gridSizeX )
 				continue;
-
 			for( int y = originY - shiftLimit; y <= originY + shiftLimit; ++y )
 			{
 				if ( y < 0 || y >= m_gridSizeY )
@@ -706,20 +694,15 @@ public:
 				FOR_EACH_VEC( (*areaVector), it )
 				{
 					CNavArea *area = (*areaVector)[ it ];
-
 					// skip if we've already visited this area
 					if ( area->m_nearNavSearchMarker == searchMarker )
 						continue;
-
 					// mark as visited
 					area->m_nearNavSearchMarker = searchMarker;
-
 					float distSq = ( area->GetCenter() - pos ).LengthSqr();
-
-					if ( ( distSq <= radiusSq ) || ( radiusSq == 0 ) )
-					{
-						if ( func( area ) == false )
-							return false;
+					if ( ( distSq <= radiusSq  ||  radiusSq == 0 )
+							&& !func( area )) {
+						return false;
 					}
 				}
 			}
@@ -727,6 +710,55 @@ public:
 		return true;
 	}
 
+	static bool isAdjAreaX(CNavArea* adjArea, const Vector& adjOrigin,
+			const Vector& start) {
+		return adjOrigin.x <= start.x
+				&& adjOrigin.x + adjArea->GetSizeX() >= start.x;
+	}
+
+	static bool isAdjAreaY(CNavArea* adjArea, const Vector& adjOrigin,
+			const Vector& start) {
+		return adjOrigin.y <= start.y
+				&& adjOrigin.y + adjArea->GetSizeY() >= start.y;
+	}
+
+	template<typename Functor1, typename Functor2>
+	static bool checkAlong(CNavArea* area, CNavArea* endArea, const Vector& start,
+			NavDirType dir, Functor1& isAdJArea, Functor2& func) {
+		while( area )
+		{
+			func( area );
+			if ( area == endArea )
+				return true;
+			const NavConnectVector *adjVector = area->GetAdjacentAreas( dir );
+			area = NULL;
+			for( int i=0; i<adjVector->Count(); ++i )
+			{
+				CNavArea *adjArea = adjVector->Element(i).area;
+				const Vector &adjOrigin = adjArea->GetCorner( NORTH_WEST );
+				if ( isAdJArea(adjArea, adjOrigin, start))
+				{
+					area = adjArea;
+					break;
+				}
+			}
+		}
+		return false;
+	}
+
+	static void findIntersect(NavDirType& edge, Vector& exit, float x,
+			const Vector& start, const Vector& end, float yMin, float yMax) {
+		float t = (x - start.x) / (end.x - start.x);
+		if (t > 0.0f && t < 1.0f) {
+			float y = start.y + t * (end.y - start.y);
+			if (y >= yMin && y <= yMax) {
+				// intersects this edge
+				exit.x = x;
+				exit.y = y;
+				edge = WEST;
+			}
+		}
+	}
 	//---------------------------------------------------------------------------------------------------------------
 	/*
 	 * Step through nav mesh along line between startArea and endArea.
@@ -757,79 +789,20 @@ public:
 			func( startArea );
 			return true;
 		}
-
 		if ( fabs( to.x ) < epsilon )
 		{
-			NavDirType dir = ( to.y < 0.0f ) ? NORTH : SOUTH;
-
-			CNavArea *area = startArea;
-			while( area )
-			{
-				func( area );
-
-				if ( area == endArea )
-					return true;
-
-				const NavConnectVector *adjVector = area->GetAdjacentAreas( dir );
-
-				area = NULL;
-
-				for( int i=0; i<adjVector->Count(); ++i )
-				{
-					CNavArea *adjArea = adjVector->Element(i).area;
-
-					const Vector &adjOrigin = adjArea->GetCorner( NORTH_WEST );
-
-					if ( adjOrigin.x <= start.x && adjOrigin.x + adjArea->GetSizeX() >= start.x )
-					{
-						area = adjArea;
-						break;
-					}
-				}
-			}
-
-			return false;
+			return checkAlong(startArea, endArea, start,
+					(to.y < 0.0f) ? NORTH : SOUTH, isAdjAreaX, func);
 		}
-		else if ( fabs( to.y ) < epsilon )
+		if ( fabs( to.y ) < epsilon )
 		{
-			NavDirType dir = ( to.x < 0.0f ) ? WEST : EAST;
-
-			CNavArea *area = startArea;
-			while( area )
-			{
-				func( area );
-
-				if ( area == endArea )
-					return true;
-
-				const NavConnectVector *adjVector = area->GetAdjacentAreas( dir );
-
-				area = NULL;
-
-				for( int i=0; i<adjVector->Count(); ++i )
-				{
-					CNavArea *adjArea = adjVector->Element(i).area;
-
-					const Vector &adjOrigin = adjArea->GetCorner( NORTH_WEST );
-
-					if ( adjOrigin.y <= start.y && adjOrigin.y + adjArea->GetSizeY() >= start.y )
-					{
-						area = adjArea;
-						break;
-					}
-				}
-			}
-
-			return false;
+			return checkAlong(startArea, endArea, start,
+					(to.x < 0.0f) ? WEST : EAST, isAdjAreaY, func);
 		}
-
-
 		CNavArea *area = startArea;
-
 		while( area )
 		{
 			func( area );
-
 			if ( area == endArea )
 				return true;
 
@@ -911,14 +884,10 @@ public:
 					}
 				}
 			}
-
 			if ( edge == NUM_DIRECTIONS )
 				break;
-
 			const NavConnectVector *adjVector = area->GetAdjacentAreas( edge );
-
 			area = NULL;
-
 			for( int i=0; i<adjVector->Count(); ++i )
 			{
 				CNavArea *adjArea = adjVector->Element(i).area;
@@ -933,17 +902,12 @@ public:
 						break;
 					}
 				}
-				else
-				{
-					if ( adjOrigin.y <= exit.y && adjOrigin.y + adjArea->GetSizeY() >= exit.y )
-					{
-						area = adjArea;
-						break;
-					}
+				else if ( adjOrigin.y <= exit.y && adjOrigin.y + adjArea->GetSizeY() >= exit.y ) {
+					area = adjArea;
+					break;
 				}
 			}
 		}
-
 		return false;
 	}
 
@@ -960,7 +924,7 @@ public:
 		{
 			CNavLadder *ladder = m_ladders[i];
 
-			if (func( ladder ) == false)
+			if (!func( ladder ))
 				return false;
 		}
 
@@ -1245,11 +1209,6 @@ private:
 	CountdownTimer m_updateBlockedAreasTimer;			
 };
 
-// the global singleton interface
-extern CNavMesh *TheNavMesh;
-
-// factory for creating the Navigation Mesh
-extern CNavMesh *NavMeshFactory( void );
 
 #ifdef STAGING_ONLY
 // for debugging the A* algorithm, if nonzero, show debug display and decrement for each pathfind
@@ -1319,14 +1278,5 @@ inline int CNavMesh::WorldToGridY( float wy ) const
 	
 	return y;
 }
-
-//--------------------------------------------------------------------------------------------------------------
-//
-// Function prototypes
-//
-
-extern void ApproachAreaAnalysisPrep( void );
-extern void CleanupApproachAreaAnalysisPrep( void );
-extern bool IsHeightDifferenceValid( float test, float other1, float other2, float other3 );
 
 #endif // _NAV_MESH_H_

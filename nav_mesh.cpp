@@ -60,7 +60,7 @@ extern NavAreaVector TheNavAreas;
 #ifdef STAGING_ONLY
 int g_DebugPathfindCounter = 0;
 #endif
-
+extern edict_t *EntityFromEntityHandle(IHandleEntity *pHandleEntity);
 
 //--------------------------------------------------------------------------------------------------------------
 CNavMesh::CNavMesh( void )

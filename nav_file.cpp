@@ -42,7 +42,8 @@ extern IFileSystem *filesystem;
 extern IVEngineServer* engine;
 extern CGlobalVars *gpGlobals;
 extern NavAreaVector TheNavAreas;
-
+// the global singleton interface
+extern CNavMesh *TheNavMesh;
 //--------------------------------------------------------------------------------------------------------------
 //
 // The 'place directory' is used to save and load places from

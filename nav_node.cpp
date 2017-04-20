@@ -30,6 +30,8 @@ CNavNode *CNavNode::m_list = NULL;
 unsigned int CNavNode::m_listLength = 0;
 unsigned int CNavNode::m_nextID = 1;
 
+// the global singleton interface
+extern CNavMesh *TheNavMesh;
 extern Vector NavTraceMins;
 extern Vector NavTraceMaxs;
 extern IVDebugOverlay* debugoverlay;

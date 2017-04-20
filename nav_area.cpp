@@ -36,6 +36,9 @@ extern ConVar nav_quicksave;
 extern IVEngineServer* engine;
 extern IPlayerInfoManager *playerinfomanager;
 extern IGameEventManager2 *gameeventmanager;
+// the global singleton interface
+extern CNavMesh *TheNavMesh;
+
 
 unsigned int CNavArea::m_nextID = 1;
 NavAreaVector TheNavAreas;
