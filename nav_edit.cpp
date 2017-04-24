@@ -38,19 +38,19 @@
 #include "tier0/memdbgon.h"
 
 
-ConVar nav_show_area_info( "nav_show_area_info", "0.5", FCVAR_CHEAT, "Duration in seconds to show nav area ID and attributes while editing" );
-ConVar nav_snap_to_grid( "nav_snap_to_grid", "0", FCVAR_CHEAT, "Snap to the nav generation grid when creating new nav areas" );
-ConVar nav_create_place_on_ground( "nav_create_place_on_ground", "0", FCVAR_CHEAT, "If true, nav areas will be placed flush with the ground when created by hand." );
+ConVar nav_show_area_info( "plugin_nav_show_area_info", "0.5", FCVAR_CHEAT, "Duration in seconds to show nav area ID and attributes while editing" );
+ConVar nav_snap_to_grid( "plugin_nav_snap_to_grid", "0", FCVAR_CHEAT, "Snap to the nav generation grid when creating new nav areas" );
+ConVar nav_create_place_on_ground( "plugin_nav_create_place_on_ground", "0", FCVAR_CHEAT, "If true, nav areas will be placed flush with the ground when created by hand." );
 #ifdef DEBUG
-ConVar nav_draw_limit( "nav_draw_limit", "50", FCVAR_CHEAT, "The maximum number of areas to draw in edit mode" );
+ConVar nav_draw_limit( "plugin_nav_draw_limit", "50", FCVAR_CHEAT, "The maximum number of areas to draw in edit mode" );
 #else
-ConVar nav_draw_limit( "nav_draw_limit", "500", FCVAR_CHEAT, "The maximum number of areas to draw in edit mode" );
+ConVar nav_draw_limit( "plugin_nav_draw_limit", "500", FCVAR_CHEAT, "The maximum number of areas to draw in edit mode" );
 #endif
-ConVar nav_solid_props( "nav_solid_props", "0", FCVAR_CHEAT, "Make props solid to nav generation/editing" );
-ConVar nav_create_area_at_feet( "nav_create_area_at_feet", "0", FCVAR_CHEAT, "Anchor nav_begin_area Z to editing player's feet" );
+ConVar nav_solid_props( "plugin_nav_solid_props", "0", FCVAR_CHEAT, "Make props solid to nav generation/editing" );
+ConVar nav_create_area_at_feet( "plugin_nav_create_area_at_feet", "0", FCVAR_CHEAT, "Anchor nav_begin_area Z to editing player's feet" );
 
-ConVar nav_drag_selection_volume_zmax_offset( "nav_drag_selection_volume_zmax_offset", "32", FCVAR_REPLICATED, "The offset of the nav drag volume top from center" );
-ConVar nav_drag_selection_volume_zmin_offset( "nav_drag_selection_volume_zmin_offset", "32", FCVAR_REPLICATED, "The offset of the nav drag volume bottom from center" );
+ConVar nav_drag_selection_volume_zmax_offset( "plugin_nav_drag_selection_volume_zmax_offset", "32", FCVAR_REPLICATED, "The offset of the nav drag volume top from center" );
+ConVar nav_drag_selection_volume_zmin_offset( "plugin_nav_drag_selection_volume_zmin_offset", "32", FCVAR_REPLICATED, "The offset of the nav drag volume bottom from center" );
 
 // the global singleton interface
 extern CNavMesh *TheNavMesh;
@@ -716,7 +716,7 @@ void EmitSound(edict_t *player, const char* soundName) {
  * Draw navigation areas and edit them
  * @todo Clean the whole edit system up - its structure is legacy from peculiarities in GoldSrc.
  */
-ConVar nav_show_compass( "nav_show_compass", "0", FCVAR_CHEAT );
+ConVar nav_show_compass( "plugin_nav_show_compass", "0", FCVAR_CHEAT );
 void CNavMesh::DrawEditMode( void )
 {
 	extern IVDebugOverlay* debugoverlay;
@@ -1147,10 +1147,7 @@ void CNavMesh::SetMarkedArea( CNavArea *area )
 void CNavMesh::CommandNavDelete( void )
 {
 	edict_t *player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( !IsEditMode( NORMAL ) )
+	if (player == NULL || !IsEditMode( NORMAL ) )
 		return;
 
 	if (IsSelectedSetEmpty())
@@ -1248,10 +1245,7 @@ public:
 void CNavMesh::CommandNavDeleteMarked( void ) 
 { 
 	edict_t *player = UTIL_GetListenServerEnt();
-	if (player == NULL) 
-		return; 
-
-	if ( !IsEditMode( NORMAL ) )
+	if (player == NULL || !IsEditMode( NORMAL ) )
 		return; 
 
 	CNavArea *markedArea = GetMarkedArea(); 
@@ -1288,10 +1282,7 @@ void CNavMesh::CommandNavDeleteMarked( void )
 void CNavMesh::CommandNavFloodSelect( const CCommand &args )
 {
 	edict_t *player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( !IsEditMode( NORMAL ) && !IsEditMode( PLACE_PAINTING ) )
+	if (player == NULL || (!IsEditMode( NORMAL ) && !IsEditMode( PLACE_PAINTING )))
 		return;
 
 	FindActiveNavArea();
@@ -1334,10 +1325,7 @@ void CNavMesh::CommandNavFloodSelect( const CCommand &args )
 void CNavMesh::CommandNavToggleSelectedSet( void )
 {
 	edict_t *player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( !IsEditMode( NORMAL ) && !IsEditMode( PLACE_PAINTING ) )
+	if (player == NULL || (!IsEditMode( NORMAL ) && !IsEditMode( PLACE_PAINTING )))
 		return;
 
 	EmitSound(player, "EDIT_DELETE" );
@@ -1377,10 +1365,7 @@ void CNavMesh::CommandNavToggleSelectedSet( void )
 void CNavMesh::CommandNavStoreSelectedSet( void )
 {
 	edict_t *player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( !IsEditMode( NORMAL ) && !IsEditMode( PLACE_PAINTING ) )
+	if (player == NULL || (!IsEditMode( NORMAL ) && !IsEditMode( PLACE_PAINTING ) ))
 		return;
 
 	EmitSound(player, "EDIT_DELETE" );
@@ -1401,10 +1386,7 @@ void CNavMesh::CommandNavStoreSelectedSet( void )
 void CNavMesh::CommandNavRecallSelectedSet( void )
 {
 	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( !IsEditMode( NORMAL ) && !IsEditMode( PLACE_PAINTING ) )
+	if (player == NULL || (!IsEditMode( NORMAL ) && !IsEditMode( PLACE_PAINTING ) ))
 		return;
 
 	EmitSound(player, "EDIT_DELETE" );
@@ -1431,10 +1413,7 @@ void CNavMesh::CommandNavRecallSelectedSet( void )
 void CNavMesh::CommandNavAddToSelectedSet( void )
 {
 	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( !IsEditMode( NORMAL ) && !IsEditMode( PLACE_PAINTING ) )
+	if (player == NULL || (!IsEditMode( NORMAL ) && !IsEditMode( PLACE_PAINTING ) ))
 		return;
 
 	FindActiveNavArea();
@@ -1453,10 +1432,8 @@ void CNavMesh::CommandNavAddToSelectedSet( void )
 void CNavMesh::CommandNavAddToSelectedSetByID( const CCommand &args )
 {
 	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( ( !IsEditMode( NORMAL ) && !IsEditMode( PLACE_PAINTING ) ) || args.ArgC() < 2 )
+	if (player == NULL || (!IsEditMode(NORMAL) && !IsEditMode(PLACE_PAINTING))
+			|| args.ArgC() < 2)
 		return;
 
 	int id = atoi( args[1] );
@@ -1480,10 +1457,7 @@ void CNavMesh::CommandNavAddToSelectedSetByID( const CCommand &args )
 void CNavMesh::CommandNavRemoveFromSelectedSet( void )
 {
 	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( !IsEditMode( NORMAL ) && !IsEditMode( PLACE_PAINTING ) )
+	if (player == NULL || (!IsEditMode( NORMAL ) && !IsEditMode( PLACE_PAINTING ) ))
 		return;
 
 	FindActiveNavArea();
@@ -1503,10 +1477,7 @@ void CNavMesh::CommandNavRemoveFromSelectedSet( void )
 void CNavMesh::CommandNavToggleInSelectedSet( void )
 {
 	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( !IsEditMode( NORMAL ) && !IsEditMode( PLACE_PAINTING ) )
+	if (player == NULL || (!IsEditMode( NORMAL ) && !IsEditMode( PLACE_PAINTING ) ))
 		return;
 
 	FindActiveNavArea();
@@ -1533,10 +1504,7 @@ void CNavMesh::CommandNavToggleInSelectedSet( void )
 void CNavMesh::CommandNavClearSelectedSet( void )
 {
 	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( !IsEditMode( NORMAL ) && !IsEditMode( PLACE_PAINTING ) )
+	if (player == NULL || (!IsEditMode( NORMAL ) && !IsEditMode( PLACE_PAINTING ) ))
 		return;
 
 	ClearSelectedSet();
@@ -1551,10 +1519,7 @@ void CNavMesh::CommandNavClearSelectedSet( void )
 void CNavMesh::CommandNavBeginSelecting( void )
 {
 	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( !IsEditMode( NORMAL ) && !IsEditMode( PLACE_PAINTING ) )
+	if (player == NULL || (!IsEditMode( NORMAL ) && !IsEditMode( PLACE_PAINTING ) ))
 		return;
 
 	m_isContinuouslySelecting = true;
@@ -1571,12 +1536,8 @@ void CNavMesh::CommandNavBeginSelecting( void )
 void CNavMesh::CommandNavEndSelecting( void )
 {
 	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL)
+	if (player == NULL || (!IsEditMode(NORMAL) && !IsEditMode(PLACE_PAINTING)))
 		return;
-
-	if ( !IsEditMode( NORMAL ) && !IsEditMode( PLACE_PAINTING ) )
-		return;
-
 	m_isContinuouslySelecting = false;
 	m_isContinuouslyDeselecting = false;
 
@@ -1588,10 +1549,9 @@ void CNavMesh::CommandNavEndSelecting( void )
 void CNavMesh::CommandNavBeginDragSelecting( void )
 {
 	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( !IsEditMode( NORMAL ) && !IsEditMode( PLACE_PAINTING ) && !IsEditMode( DRAG_SELECTING ) )
+	if (player == NULL
+			|| (!IsEditMode(NORMAL) && !IsEditMode(PLACE_PAINTING)
+					&& !IsEditMode(DRAG_SELECTING)))
 		return;
 
 	FindActiveNavArea();
@@ -1649,10 +1609,9 @@ void CNavMesh::CommandNavEndDragSelecting( void )
 void CNavMesh::CommandNavBeginDragDeselecting( void )
 {
 	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( !IsEditMode( NORMAL ) && !IsEditMode( PLACE_PAINTING ) && !IsEditMode( DRAG_SELECTING ) )
+	if (player == NULL
+			|| (!IsEditMode(NORMAL) && !IsEditMode(PLACE_PAINTING)
+					&& !IsEditMode(DRAG_SELECTING)))
 		return;
 
 	FindActiveNavArea();
@@ -1763,10 +1722,7 @@ void CNavMesh::CommandNavLowerDragVolumeMin( void )
 void CNavMesh::CommandNavToggleSelecting( bool playSound )
 {
 	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( !IsEditMode( NORMAL ) && !IsEditMode( PLACE_PAINTING ) )
+	if (player == NULL || ( !IsEditMode( NORMAL ) && !IsEditMode( PLACE_PAINTING ) ))
 		return;
 
 	m_isContinuouslySelecting = !m_isContinuouslySelecting;
@@ -1786,10 +1742,7 @@ void CNavMesh::CommandNavToggleSelecting( bool playSound )
 void CNavMesh::CommandNavBeginDeselecting( void )
 {
 	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( !IsEditMode( NORMAL ) && !IsEditMode( PLACE_PAINTING ) )
+	if (player == NULL || ( !IsEditMode( NORMAL ) && !IsEditMode( PLACE_PAINTING ) ))
 		return;
 
 	m_isContinuouslyDeselecting = true;
@@ -1806,10 +1759,7 @@ void CNavMesh::CommandNavBeginDeselecting( void )
 void CNavMesh::CommandNavEndDeselecting( void )
 {
 	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( !IsEditMode( NORMAL ) && !IsEditMode( PLACE_PAINTING ) )
+	if (player == NULL || ( !IsEditMode( NORMAL ) && !IsEditMode( PLACE_PAINTING ) ))
 		return;
 
 	m_isContinuouslyDeselecting = false;
@@ -1826,10 +1776,7 @@ void CNavMesh::CommandNavEndDeselecting( void )
 void CNavMesh::CommandNavToggleDeselecting( bool playSound )
 {
 	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( !IsEditMode( NORMAL ) && !IsEditMode( PLACE_PAINTING ) )
+	if (player == NULL || ( !IsEditMode( NORMAL ) && !IsEditMode( PLACE_PAINTING ) ))
 		return;
 
 	m_isContinuouslyDeselecting = !m_isContinuouslyDeselecting;
@@ -1850,10 +1797,7 @@ void CNavMesh::CommandNavToggleDeselecting( bool playSound )
 void CNavMesh::CommandNavSelectHalfSpace( const CCommand &args )
 {
 	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( !IsEditMode( NORMAL ) && !IsEditMode( PLACE_PAINTING ) )
+	if (player == NULL || ( !IsEditMode( NORMAL ) && !IsEditMode( PLACE_PAINTING ) ))
 		return;
 
 	if ( args.ArgC() != 3 )
@@ -2156,7 +2100,7 @@ void CommandNavCenterInWorld( void )
 
 	Msg( "Shifting mesh by %f,%f\n", shift.x, shift.y );
 }
-ConCommand nav_world_center( "nav_world_center", CommandNavCenterInWorld, "Centers the nav mesh in the world", FCVAR_CHEAT );
+ConCommand nav_world_center( "plugin_nav_world_center", CommandNavCenterInWorld, "Centers the nav mesh in the world", FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2166,10 +2110,7 @@ ConCommand nav_world_center( "nav_world_center", CommandNavCenterInWorld, "Cente
 void CNavMesh::CommandNavSelectInvalidAreas( void )
 {
 	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( !IsEditMode( NORMAL ) )
+	if (player == NULL || !IsEditMode( NORMAL ) )
 		return;
 
 	ClearSelectedSet();
@@ -2223,10 +2164,7 @@ void CNavMesh::CommandNavSelectInvalidAreas( void )
 void CNavMesh::CommandNavSelectBlockedAreas( void )
 {
 	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( !IsEditMode( NORMAL ) )
+	if (player == NULL || !IsEditMode( NORMAL ) )
 		return;
 
 	ClearSelectedSet();
@@ -2299,10 +2237,7 @@ void CNavMesh::CommandNavSelectObstructedAreas( void )
 void CNavMesh::CommandNavSelectDamagingAreas( void )
 {
 	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( !IsEditMode( NORMAL ) )
+	if (player == NULL || !IsEditMode( NORMAL ) )
 		return;
 
 	ClearSelectedSet();
@@ -2337,10 +2272,7 @@ void CNavMesh::CommandNavSelectDamagingAreas( void )
 void CNavMesh::CommandNavSelectStairs( void )
 {
 	edict_t* player = UTIL_GetListenServerEnt();
-	if ( player == NULL )
-		return;
-
-	if ( !IsEditMode( NORMAL ) )
+	if ( player == NULL || !IsEditMode( NORMAL ) )
 		return;
 
 	ClearSelectedSet();
@@ -2373,10 +2305,7 @@ void CNavMesh::CommandNavSelectStairs( void )
 void CNavMesh::CommandNavSelectOrphans( void )
 {
 	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( !IsEditMode( NORMAL ) && !IsEditMode( PLACE_PAINTING ) )
+	if (player == NULL || !IsEditMode( NORMAL ) && !IsEditMode( PLACE_PAINTING ) )
 		return;
 
 	FindActiveNavArea();
@@ -2410,10 +2339,7 @@ void CNavMesh::CommandNavSelectOrphans( void )
 void CNavMesh::CommandNavSplit( void )
 {
 	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( !IsEditMode( NORMAL ) )
+	if (player == NULL || !IsEditMode( NORMAL ) )
 		return;
 
 	FindActiveNavArea();
@@ -2486,10 +2412,7 @@ bool MakeSniperSpots( CNavArea *area )
 void CNavMesh::CommandNavMakeSniperSpots( void )
 {
 	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( !IsEditMode( NORMAL ) )
+	if (player == NULL || !IsEditMode( NORMAL ) )
 		return;
 
 	FindActiveNavArea();
@@ -2522,10 +2445,7 @@ void CNavMesh::CommandNavMakeSniperSpots( void )
 void CNavMesh::CommandNavMerge( void )
 {
 	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( !IsEditMode( NORMAL ) )
+	if (player == NULL || !IsEditMode( NORMAL ) )
 		return;
 
 	FindActiveNavArea();
@@ -2537,13 +2457,11 @@ void CNavMesh::CommandNavMerge( void )
 		{
 			other = m_selectedSet[0];
 		}
-
 		if ( other && other != m_selectedArea )
 		{
-			if ( m_selectedArea->MergeEdit(this, other ) )
-				EmitSound(player, "EDIT_MERGE.Enable" );
-			else
-				EmitSound(player, "EDIT_MERGE.Disable" );
+
+			EmitSound(player, m_selectedArea->MergeEdit(this, other )
+						? "EDIT_MERGE.Enable":"EDIT_MERGE.Disable");
 		}
 		else
 		{
@@ -2564,10 +2482,7 @@ void CNavMesh::CommandNavMerge( void )
 void CNavMesh::CommandNavMark( const CCommand &args )
 {
 	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( !IsEditMode( NORMAL ) )
+	if (player == NULL || !IsEditMode( NORMAL ) )
 		return;
 		
 	if (!IsSelectedSetEmpty())
@@ -2700,10 +2615,7 @@ void CNavMesh::CommandNavMark( const CCommand &args )
 void CNavMesh::CommandNavUnmark( void )
 {
 	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( !IsEditMode( NORMAL ) )
+	if (player == NULL || !IsEditMode( NORMAL ) )
 		return;
 
 	EmitSound(player, "EDIT_MARK.Enable" );
@@ -2901,10 +2813,7 @@ void CNavMesh::CommandNavEndArea( void )
 void CNavMesh::CommandNavConnect( void )
 {
 	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( !IsEditMode( NORMAL ) )
+	if (player == NULL || !IsEditMode( NORMAL ) )
 		return;
 
 	FindActiveNavArea();
@@ -3020,10 +2929,7 @@ void CNavMesh::CommandNavConnect( void )
 void CNavMesh::CommandNavDisconnect( void )
 {
 	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( !IsEditMode( NORMAL ) )
+	if (player == NULL || !IsEditMode( NORMAL ) )
 		return;
 
 	FindActiveNavArea();
@@ -3118,10 +3024,7 @@ void CNavMesh::CommandNavDisconnect( void )
 void CNavMesh::CommandNavDisconnectOutgoingOneWays( void )
 {
 	edict_t* player = UTIL_GetListenServerEnt();
-	if ( !player )
-		return;
-
-	if ( !IsEditMode( NORMAL ) )
+	if ( !player || !IsEditMode( NORMAL ) )
 		return;
 
 	if ( m_selectedSet.Count() == 0 )
@@ -3166,10 +3069,7 @@ void CNavMesh::CommandNavDisconnectOutgoingOneWays( void )
 void CNavMesh::CommandNavSplice( void )
 {
 	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( !IsEditMode( NORMAL ) )
+	if (player == NULL || !IsEditMode( NORMAL ) )
 		return;
 
 	FindActiveNavArea();
@@ -3223,10 +3123,7 @@ void CNavMesh::DoToggleAttribute( CNavArea *area, NavAttributeType attribute )
 void CNavMesh::CommandNavToggleAttribute( NavAttributeType attribute )
 {
 	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( !IsEditMode( NORMAL ) )
+	if (player == NULL || !IsEditMode( NORMAL ) )
 		return;
 
 	if ( IsSelectedSetEmpty() )
@@ -3289,10 +3186,7 @@ void CNavMesh::CommandNavTogglePlaceMode( void )
 void CNavMesh::CommandNavPlaceFloodFill( void )
 {
 	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( !IsEditMode( PLACE_PAINTING ) )
+	if (player == NULL || !IsEditMode( PLACE_PAINTING ) )
 		return;
 
 	FindActiveNavArea();
@@ -3312,10 +3206,7 @@ void CNavMesh::CommandNavPlaceFloodFill( void )
 void CNavMesh::CommandNavPlaceSet( void )
 {
 	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( !IsEditMode( PLACE_PAINTING ) )
+	if (player == NULL || !IsEditMode( PLACE_PAINTING ) )
 		return;
 
 	if ( !IsSelectedSetEmpty() )
@@ -3333,10 +3224,7 @@ void CNavMesh::CommandNavPlaceSet( void )
 void CNavMesh::CommandNavPlacePick( void )
 {
 	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( !IsEditMode( PLACE_PAINTING ) )
+	if (player == NULL || !IsEditMode( PLACE_PAINTING ) )
 		return;
 
 	FindActiveNavArea();
@@ -3356,10 +3244,7 @@ void CNavMesh::CommandNavPlacePick( void )
 void CNavMesh::CommandNavTogglePlacePainting( void )
 {
 	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( !IsEditMode( PLACE_PAINTING ) )
+	if (player == NULL || !IsEditMode( PLACE_PAINTING ) )
 		return;
 
 	FindActiveNavArea();
@@ -3391,10 +3276,7 @@ void CNavMesh::CommandNavTogglePlacePainting( void )
 void CNavMesh::CommandNavMarkUnnamed( void )
 {
 	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( !IsEditMode( NORMAL ) )
+	if (player == NULL || !IsEditMode( NORMAL ) )
 		return;
 
 	FindActiveNavArea();
@@ -3456,10 +3338,7 @@ void CNavMesh::CommandNavMarkUnnamed( void )
 void CNavMesh::CommandNavCornerSelect( void )
 {
 	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( !IsEditMode( NORMAL ) )
+	if (player == NULL || !IsEditMode( NORMAL ) )
 		return;
 
 	FindActiveNavArea();
@@ -3484,10 +3363,7 @@ void CNavMesh::CommandNavCornerSelect( void )
 void CNavMesh::CommandNavCornerRaise( const CCommand &args )
 {
 	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( !IsEditMode( NORMAL ) )
+	if (player == NULL || !IsEditMode( NORMAL ) )
 		return;
 
 	int amount = 1;
@@ -3535,10 +3411,7 @@ void CNavMesh::CommandNavCornerRaise( const CCommand &args )
 void CNavMesh::CommandNavCornerLower( const CCommand &args )
 {
 	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( !IsEditMode( NORMAL ) )
+	if (player == NULL || !IsEditMode( NORMAL ) )
 		return;
 
 	int amount = -1;
@@ -3586,10 +3459,7 @@ void CNavMesh::CommandNavCornerLower( const CCommand &args )
 void CNavMesh::CommandNavCornerPlaceOnGround( const CCommand &args )
 {
 	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( !IsEditMode( NORMAL ) )
+	if (player == NULL || !IsEditMode( NORMAL ) )
 		return;
 
 	float inset = 0.0f;
@@ -3704,10 +3574,7 @@ void CNavMesh::CommandNavWarpToMark( void )
 void CNavMesh::CommandNavLadderFlip( void )
 {
 	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL)
-		return;
-
-	if ( !IsEditMode( NORMAL ) )
+	if (player == NULL || !IsEditMode( NORMAL ) )
 		return;
 
 	FindActiveNavArea();
@@ -3803,11 +3670,9 @@ CON_COMMAND_F( nav_select_radius, "Adds all areas in a radius to the selection s
  */
 void CNavMesh::AddToSelectedSet( CNavArea *area )
 {
-	if ( !area )
-		return;
-
+	if (!area
 	// make sure area is not already in list
-	if (m_selectedSet.Find( area ) != m_selectedSet.InvalidIndex())
+			|| m_selectedSet.Find(area) != m_selectedSet.InvalidIndex())
 		return;
 		
 	m_selectedSet.AddToTail( area );
@@ -3830,11 +3695,8 @@ void CNavMesh::RemoveFromSelectedSet( CNavArea *area )
  */
 void CNavMesh::AddToDragSelectionSet( CNavArea *area )
 {
-	if ( !area )
-		return;
-
-	// make sure area is not already in list
-	if (m_dragSelectionSet.Find( area ) != m_dragSelectionSet.InvalidIndex())
+	if ( !area 	// make sure area is not already in list
+			|| m_dragSelectionSet.Find( area ) != m_dragSelectionSet.InvalidIndex())
 		return;
 		
 	m_dragSelectionSet.AddToTail( area );

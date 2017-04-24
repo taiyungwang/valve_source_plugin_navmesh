@@ -30,6 +30,7 @@ extern ConVar nav_area_bgcolor;
 extern IPlayerInfoManager* playerinfomanager;
 extern IVDebugOverlay* debugoverlay;
 extern IVEngineServer *engine;
+extern EntityClassManager *classManager;
 
 unsigned int CNavLadder::m_nextID = 1;
 
@@ -489,7 +490,6 @@ void CNavLadder::DrawConnectedAreas( bool isEdit )
 
 //--------------------------------------------------------------------------------------------------------------
 bool CNavLadder::IsUsableByTeam(int teamNumber) const {
-	extern EntityClassManager *classManager;
 	int ladderTeamNumber = BaseEntity(*classManager, m_ladderEntity.Get()).getTeam();
 	return (teamNumber == ladderTeamNumber
 			|| ladderTeamNumber == TEAM_UNASSIGNED);
@@ -645,20 +645,20 @@ public:
 
 	bool operator() ( edict_t *ent )
 	{
-		if (ent == m_ignore)
+		if (ent == m_ignore || ent == nullptr
+				|| !BaseEntity(*classManager, ent).isOnLadder())
 			return true;
 		IPlayerInfo* player = playerinfomanager->GetPlayerInfo(ent);
-		extern EntityClassManager* classManager;
-		if (!BaseEntity(*classManager, ent).isOnLadder())
+		if (player == nullptr) {
 			return true;
+		}
 		// player is on a ladder - is it this one?
 		const Vector &feet = player->GetAbsOrigin();
-		if (feet.z > m_ladder->m_top.z + HalfHumanHeight
-				|| feet.z + HumanHeight < m_ladder->m_bottom.z - HalfHumanHeight)
-			return true;
-		Vector2D away( m_ladder->m_bottom.x - feet.x, m_ladder->m_bottom.y - feet.y );
-		const float onLadderRange = 50.0f;
-		return away.IsLengthGreaterThan( onLadderRange );
+		return feet.z > m_ladder->m_top.z + HalfHumanHeight
+				|| feet.z + HumanHeight < m_ladder->m_bottom.z - HalfHumanHeight
+				|| Vector2D(m_ladder->m_bottom.x - feet.x,
+						m_ladder->m_bottom.y - feet.y).IsLengthGreaterThan(
+						50.0f);
 	}
 
 	const CNavLadder *m_ladder;

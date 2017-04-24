@@ -141,12 +141,12 @@ void CNavNode::CleanupGeneration()
 
 //--------------------------------------------------------------------------------------------------------------
 #if DEBUG_NAV_NODES
-ConVar nav_show_nodes( "nav_show_nodes", "0", FCVAR_CHEAT );
-ConVar nav_show_node_id( "nav_show_node_id", "0", FCVAR_CHEAT );
-ConVar nav_test_node( "nav_test_node", "0", FCVAR_CHEAT );
-ConVar nav_test_node_crouch( "nav_test_node_crouch", "0", FCVAR_CHEAT );
-ConVar nav_test_node_crouch_dir( "nav_test_node_crouch_dir", "4", FCVAR_CHEAT );
-ConVar nav_show_node_grid( "nav_show_node_grid", "0", FCVAR_CHEAT );
+ConVar nav_show_nodes( "plugin_nav_show_nodes", "0", FCVAR_CHEAT );
+ConVar nav_show_node_id( "plugin_nav_show_node_id", "0", FCVAR_CHEAT );
+ConVar nav_test_node( "plugin_nav_test_node", "0", FCVAR_CHEAT );
+ConVar nav_test_node_crouch( "plugin_nav_test_node_crouch", "0", FCVAR_CHEAT );
+ConVar nav_test_node_crouch_dir( "plugin_nav_test_node_crouch_dir", "4", FCVAR_CHEAT );
+ConVar nav_show_node_grid( "plugin_nav_show_node_grid", "0", FCVAR_CHEAT );
 #endif // DEBUG_NAV_NODES
 
 

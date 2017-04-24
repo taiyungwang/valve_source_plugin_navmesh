@@ -147,12 +147,8 @@ bool CFuncNavCost::IsApplicableTo( edict_t *who ) const
 		return false;
 	}
 
-	if ( m_team > 0 )
-	{
-		if ( playerinfomanager->GetPlayerInfo(who)->GetTeamIndex() != m_team )
-		{
-			return false;
-		}
+	if ( m_team > 0 && playerinfomanager->GetPlayerInfo(who)->GetTeamIndex() != m_team ) {
+		return false;
 	}
 
 #ifdef TF_DLL
@@ -297,12 +293,7 @@ void CFuncNavCost::UpdateAllNavCostDecoration( CNavMesh* TheNavMesh )
 // Return pathfind cost multiplier for the given actor
 float CFuncNavAvoid::GetCostMultiplier( edict_t *who ) const
 {
-	if ( IsApplicableTo( who ) )
-	{
-		return 25.0f;
-	}
-
-	return 1.0f;
+	return IsApplicableTo(who) ? 25.0f : 1.0f;
 }
 
 
@@ -311,12 +302,8 @@ float CFuncNavAvoid::GetCostMultiplier( edict_t *who ) const
 // Return pathfind cost multiplier for the given actor
 float CFuncNavPrefer::GetCostMultiplier( edict_t *who ) const
 {
-	if ( IsApplicableTo( who ) )
-	{
-		return 0.04f;	// 1/25th
-	}
-
-	return 1.0f;
+	return IsApplicableTo(who) ? 0.04f :	// 1/25th
+			1.0f;
 }
 
 
@@ -522,7 +509,6 @@ bool CFuncNavBlocker::CalculateBlocked( bool *pResultByTeam, const Vector &vecMi
 	{
 		pResultByTeam[i] = false;
 	}
-
 	FOR_EACH_LL( gm_NavBlockers, iBlocker )
 	{
 		CFuncNavBlocker *pBlocker = gm_NavBlockers[iBlocker];
@@ -530,25 +516,14 @@ bool CFuncNavBlocker::CalculateBlocked( bool *pResultByTeam, const Vector &vecMi
 
 		for ( i=0; i<MAX_NAV_TEAMS; ++i )
 		{
-			if ( pBlocker->m_isBlockingNav[i] )
-			{
-				if ( !pResultByTeam[i] )
-				{
-					if (bIsIntersecting
-							|| (bIsIntersecting = IsBoxIntersectingBox(
+			if (pBlocker->m_isBlockingNav[i] && !pResultByTeam[i]
+					&& (bIsIntersecting
+							|| !(bIsIntersecting = IsBoxIntersectingBox(
 									pBlocker->m_CachedMins,
-									pBlocker->m_CachedMaxs, vecMins, vecMaxs))
-									!= false)
-					{
-						bBlocked = true;
-						pResultByTeam[i] = true;
-						nTeamsBlocked++;
-					}
-					else
-					{
-						continue;
-					}
-				}
+									pBlocker->m_CachedMaxs, vecMins, vecMaxs)))) {
+				bBlocked = true;
+				pResultByTeam[i] = true;
+				nTeamsBlocked++;
 			}
 		}
 

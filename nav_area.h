@@ -707,6 +707,7 @@ private:
 
 	void CalcDebugID();
 
+	bool isOnDisplacement() const;
 #ifdef NEXT_BOT
 	CUtlVector< CHandle< CFuncNavPrerequisite > > m_prerequisiteVector;		// list of prerequisites that must be met before this area can be traversed
 #endif

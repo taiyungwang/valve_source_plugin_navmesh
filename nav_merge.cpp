@@ -309,7 +309,7 @@ void CNavMesh::CommandNavMergeMesh( const CCommand &args )
 //--------------------------------------------------------------------------------------------------------
 int NavMeshMergeAutocomplete( char const *partial, char commands[ COMMAND_COMPLETION_MAXITEMS ][ COMMAND_COMPLETION_ITEM_LENGTH ] )
 {
-	const char *commandName = "nav_merge_mesh";
+	const char *commandName = "plugin_nav_merge_mesh";
 	int numMatches = 0;
 	partial += Q_strlen( commandName ) + 1;
 	int partialLength = Q_strlen( partial );

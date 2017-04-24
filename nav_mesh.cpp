@@ -35,15 +35,15 @@
  */
 extern CNavMesh *TheNavMesh;
 
-ConVar nav_edit( "nav_edit", "0", FCVAR_GAMEDLL | FCVAR_CHEAT, "Set to one to interactively edit the Navigation Mesh. Set to zero to leave edit mode." );
-ConVar nav_quicksave( "nav_quicksave", "1", FCVAR_GAMEDLL | FCVAR_CHEAT, "Set to one to skip the time consuming phases of the analysis.  Useful for data collection and testing." );	// TERROR: defaulting to 1, since we don't need the other data
-ConVar nav_show_approach_points( "nav_show_approach_points", "0", FCVAR_GAMEDLL | FCVAR_CHEAT, "Show Approach Points in the Navigation Mesh." );
-ConVar nav_show_danger( "nav_show_danger", "0", FCVAR_GAMEDLL | FCVAR_CHEAT, "Show current 'danger' levels." );
-ConVar nav_show_player_counts( "nav_show_player_counts", "0", FCVAR_GAMEDLL | FCVAR_CHEAT, "Show current player counts in each area." );
-ConVar nav_show_func_nav_avoid( "nav_show_func_nav_avoid", "0", FCVAR_GAMEDLL | FCVAR_CHEAT, "Show areas of designer-placed bot avoidance due to func_nav_avoid entities" );
-ConVar nav_show_func_nav_prefer( "nav_show_func_nav_prefer", "0", FCVAR_GAMEDLL | FCVAR_CHEAT, "Show areas of designer-placed bot preference due to func_nav_prefer entities" );
-ConVar nav_show_func_nav_prerequisite( "nav_show_func_nav_prerequisite", "0", FCVAR_GAMEDLL | FCVAR_CHEAT, "Show areas of designer-placed bot preference due to func_nav_prerequisite entities" );
-ConVar nav_max_vis_delta_list_length( "nav_max_vis_delta_list_length", "64", FCVAR_CHEAT );
+ConVar nav_edit( "plugin_nav_edit", "0", FCVAR_GAMEDLL | FCVAR_CHEAT, "Set to one to interactively edit the Navigation Mesh. Set to zero to leave edit mode." );
+ConVar nav_quicksave( "plugin_nav_quicksave", "1", FCVAR_GAMEDLL | FCVAR_CHEAT, "Set to one to skip the time consuming phases of the analysis.  Useful for data collection and testing." );	// TERROR: defaulting to 1, since we don't need the other data
+ConVar nav_show_approach_points( "plugin_nav_show_approach_points", "0", FCVAR_GAMEDLL | FCVAR_CHEAT, "Show Approach Points in the Navigation Mesh." );
+ConVar nav_show_danger( "plugin_nav_show_danger", "0", FCVAR_GAMEDLL | FCVAR_CHEAT, "Show current 'danger' levels." );
+ConVar nav_show_player_counts( "plugin_nav_show_player_counts", "0", FCVAR_GAMEDLL | FCVAR_CHEAT, "Show current player counts in each area." );
+ConVar nav_show_func_nav_avoid( "plugin_nav_show_func_nav_avoid", "0", FCVAR_GAMEDLL | FCVAR_CHEAT, "Show areas of designer-placed bot avoidance due to func_nav_avoid entities" );
+ConVar nav_show_func_nav_prefer( "plugin_nav_show_func_nav_prefer", "0", FCVAR_GAMEDLL | FCVAR_CHEAT, "Show areas of designer-placed bot preference due to func_nav_prefer entities" );
+ConVar nav_show_func_nav_prerequisite( "plugin_nav_show_func_nav_prerequisite", "0", FCVAR_GAMEDLL | FCVAR_CHEAT, "Show areas of designer-placed bot preference due to func_nav_prerequisite entities" );
+ConVar nav_max_vis_delta_list_length( "plugin_nav_max_vis_delta_list_length", "64", FCVAR_CHEAT );
 
 extern ConVar nav_edit;
 extern ConVar nav_quicksave;
@@ -275,21 +275,17 @@ void CNavMesh::Update( void )
 
 	if (nav_edit.GetBool())
 	{
-		if (m_isEditing == false)
+		if (!m_isEditing)
 		{
 			OnEditModeStart();
 			m_isEditing = true;
 		}
-
 		DrawEditMode();
 	}
-	else
-	{
-		if (m_isEditing)
-		{
-			OnEditModeEnd();
-			m_isEditing = false;
-		}
+	else if (m_isEditing){
+		OnEditModeEnd();
+		m_isEditing = false;
+
 	}
 
 	if (nav_show_danger.GetBool())
@@ -724,11 +720,9 @@ CNavArea *CNavMesh::GetNavArea( const Vector &pos, float beneathLimit ) const
 			float z = area->GetZ( testPos );
 
 			// if area is above us, skip it
-			if (z > testPos.z)
-				continue;
-
-			// if area is too far below us, skip it
-			if (z < pos.z - beneathLimit)
+			if (z > testPos.z
+					// if area is too far below us, skip it
+					|| z < pos.z - beneathLimit)
 				continue;
 
 			// if area is higher than the one we have, use this instead
@@ -786,31 +780,20 @@ CNavArea *CNavMesh::GetNavArea( edict_t *pEntity, int nFlags, float flBeneathLim
 	bool bSkipBlockedAreas = ( ( nFlags & GETNAVAREA_ALLOW_BLOCKED_AREAS ) == 0 );
 	FOR_EACH_VEC( (*areaVector), it )
 	{
-		CNavArea *pArea = (*areaVector)[ it ];
-
+		CNavArea *pArea = (*areaVector)[it];
+		float z = pArea->GetZ(testPos);
 		// check if position is within 2D boundaries of this area
-		if ( !pArea->IsOverlapping( testPos ) )
-			continue;
-
+		if (!pArea->IsOverlapping(testPos)
 		// don't consider blocked areas
-		if ( bSkipBlockedAreas && pArea->IsBlocked( pBCC->GetTeamIndex() ) )
+				|| (bSkipBlockedAreas && pArea->IsBlocked(pBCC->GetTeamIndex()))
+				// project position onto area to get Z
+				// if area is above us, skip it
+				|| z > testPos.z + flStepHeight
+				// if area is too far below us, skip it
+				|| z < testPos.z - flBeneathLimit
+				// if area is lower than the one we have, skip it
+				|| z <= useZ)
 			continue;
-
-		// project position onto area to get Z
-		float z = pArea->GetZ( testPos );
-
-		// if area is above us, skip it
-		if ( z > testPos.z + flStepHeight )
-			continue;
-
-		// if area is too far below us, skip it
-		if ( z < testPos.z - flBeneathLimit )
-			continue;
-
-		// if area is lower than the one we have, skip it
-		if ( z <= useZ )
-			continue;
-
 		use = pArea;
 		useZ = z;
 	}
@@ -926,11 +909,9 @@ CNavArea *CNavMesh::GetNearestNavArea( const Vector &pos, bool anyZ, float maxDi
 					CNavArea *area = (*areaVector)[ it ];
 
 					// skip if we've already visited this area
-					if ( area->m_nearNavSearchMarker == searchMarker )
-						continue;
-
+					if ( area->m_nearNavSearchMarker == searchMarker
 					// don't consider blocked areas
-					if ( area->IsBlocked( team ) )
+							|| area->IsBlocked( team ) )
 						continue;
 
 					// mark as visited
@@ -1022,12 +1003,13 @@ CNavArea *CNavMesh::GetNearestNavArea( edict_t *pEntity, int nFlags, float maxDi
 	CNavArea *pClose = GetNavArea( pEntity, nFlags );
 	if ( pClose )
 		return pClose;
-
-	bool bCheckLOS = ( nFlags & GETNAVAREA_CHECK_LOS ) != 0;
-	bool bCheckGround = ( nFlags & GETNAVAREA_CHECK_GROUND ) != 0;
 	IPlayerInfo *player = playerinfomanager->GetPlayerInfo(pEntity);
-	return GetNearestNavArea(player->GetAbsOrigin(), false, maxDist, bCheckLOS,
-			bCheckGround, player->GetTeamIndex());
+	if (player == nullptr) {
+		return nullptr;
+	}
+	return GetNearestNavArea(player->GetAbsOrigin(), false, maxDist,
+			(nFlags & GETNAVAREA_CHECK_LOS) != 0,
+			(nFlags & GETNAVAREA_CHECK_GROUND) != 0, player->GetTeamIndex());
 }
 
 
@@ -1251,7 +1233,7 @@ Place CNavMesh::PartialNameToPlace( const char *name ) const
 int CNavMesh::PlaceNameAutocomplete( char const *partial, char commands[ COMMAND_COMPLETION_MAXITEMS ][ COMMAND_COMPLETION_ITEM_LENGTH ] )
 {
 	int numMatches = 0;
-	partial += Q_strlen( "nav_use_place " );
+	partial += Q_strlen( "plugin_nav_use_place " );
 	int partialLength = Q_strlen( partial );
 
 	for( unsigned int i=0; i<m_placeCount; ++i )
@@ -1259,7 +1241,7 @@ int CNavMesh::PlaceNameAutocomplete( char const *partial, char commands[ COMMAND
 		if ( !Q_strnicmp( m_placeName[i], partial, partialLength ) )
 		{
 			// Add the place name to the autocomplete array
-			Q_snprintf( commands[ numMatches++ ], COMMAND_COMPLETION_ITEM_LENGTH, "nav_use_place %s", m_placeName[i] );
+			Q_snprintf( commands[ numMatches++ ], COMMAND_COMPLETION_ITEM_LENGTH, "plugin_nav_use_place %s", m_placeName[i] );
 
 			// Make sure we don't try to return too many place names
 			if ( numMatches == COMMAND_COMPLETION_MAXITEMS )
@@ -1324,17 +1306,13 @@ public:
 	{
 	}
 
-	virtual bool ShouldHitEntity( IHandleEntity *pServerEntity, int contentsMask )
-	{
-		edict_t *pEntity = EntityFromEntityHandle( pServerEntity );
-		if ( FClassnameIs( pEntity, "prop_door" ) ||
-			 FClassnameIs( pEntity, "prop_door_rotating" ) ||
-			 FClassnameIs( pEntity, "func_breakable" ) )
-		{
-			return false;
-		}
-
-		return BaseClass::ShouldHitEntity( pServerEntity, contentsMask );
+	virtual bool ShouldHitEntity(IHandleEntity *pServerEntity,
+			int contentsMask) {
+		edict_t *pEntity = EntityFromEntityHandle(pServerEntity);
+		return !FClassnameIs(pEntity, "prop_door")
+				&& !FClassnameIs(pEntity, "prop_door_rotating")
+				&& !FClassnameIs(pEntity, "func_breakable")
+				&& BaseClass::ShouldHitEntity(pServerEntity, contentsMask);
 	}
 };
 
@@ -1460,6 +1438,26 @@ void CNavMesh::DrawPlayerCounts( void ) const
 	}
 }
 
+bool hasFuncNavAvoid(CNavArea* area) {
+	return area->HasFuncNavAvoid();
+}
+
+bool hasFuncNavPrefer(CNavArea* area) {
+	return area->HasFuncNavPrefer();
+}
+
+template<typename Functor>
+void drawFunc(Functor& rightArea, int r, int g, int b) {
+	FOR_EACH_VEC( TheNavAreas, it )
+	{
+		CNavArea *area = TheNavAreas[ it ];
+
+		if ( rightArea(area) )
+		{
+			area->DrawFilled( r, g, b, 255 );
+		}
+	}
+}
 
 //--------------------------------------------------------------------------------------------------------------
 /**
@@ -1467,17 +1465,8 @@ void CNavMesh::DrawPlayerCounts( void ) const
  */
 void CNavMesh::DrawFuncNavAvoid( void ) const
 {
-	FOR_EACH_VEC( TheNavAreas, it )
-	{
-		CNavArea *area = TheNavAreas[ it ];
-
-		if ( area->HasFuncNavAvoid() )
-		{
-			area->DrawFilled( 255, 0, 0, 255 );
-		}
-	}
+	drawFunc(hasFuncNavAvoid, 255, 0, 0);
 }
-
 
 //--------------------------------------------------------------------------------------------------------------
 /**
@@ -1485,15 +1474,7 @@ void CNavMesh::DrawFuncNavAvoid( void ) const
  */
 void CNavMesh::DrawFuncNavPrefer( void ) const
 {
-	FOR_EACH_VEC( TheNavAreas, it )
-	{
-		CNavArea *area = TheNavAreas[ it ];
-
-		if ( area->HasFuncNavPrefer() )
-		{
-			area->DrawFilled( 0, 255, 0, 255 );
-		}
-	}
+	drawFunc(hasFuncNavPrefer, 0, 255, 0);
 }
 
 
@@ -1592,7 +1573,7 @@ void CommandNavRemoveJumpAreas( void )
 
 	TheNavMesh->CommandNavRemoveJumpAreas();
 }
-static ConCommand nav_remove_jump_areas( "nav_remove_jump_areas", CommandNavRemoveJumpAreas, "Removes legacy jump areas, replacing them with connections.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_remove_jump_areas( "plugin_nav_remove_jump_areas", CommandNavRemoveJumpAreas, "Removes legacy jump areas, replacing them with connections.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -1603,7 +1584,7 @@ void CommandNavDelete( void )
 
 	TheNavMesh->CommandNavDelete();
 }
-static ConCommand nav_delete( "nav_delete", CommandNavDelete, "Deletes the currently highlighted Area.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_delete( "plugin_nav_delete", CommandNavDelete, "Deletes the currently highlighted Area.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //-------------------------------------------------------------------------------------------------------------- 
@@ -1614,7 +1595,7 @@ void CommandNavDeleteMarked( void )
 
 	TheNavMesh->CommandNavDeleteMarked(); 
 } 
-static ConCommand nav_delete_marked( "nav_delete_marked", CommandNavDeleteMarked, "Deletes the currently marked Area (if any).", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_delete_marked( "plugin_nav_delete_marked", CommandNavDeleteMarked, "Deletes the currently marked Area (if any).", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -1635,7 +1616,7 @@ void CommandNavToggleSelectedSet( void )
 
 	TheNavMesh->CommandNavToggleSelectedSet();
 }
-static ConCommand nav_toggle_selected_set( "nav_toggle_selected_set", CommandNavToggleSelectedSet, "Toggles all areas into/out of the selected set.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_toggle_selected_set( "plugin_nav_toggle_selected_set", CommandNavToggleSelectedSet, "Toggles all areas into/out of the selected set.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -1646,7 +1627,7 @@ void CommandNavStoreSelectedSet( void )
 
 	TheNavMesh->CommandNavStoreSelectedSet();
 }
-static ConCommand nav_store_selected_set( "nav_store_selected_set", CommandNavStoreSelectedSet, "Stores the current selected set for later retrieval.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_store_selected_set( "plugin_nav_store_selected_set", CommandNavStoreSelectedSet, "Stores the current selected set for later retrieval.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -1657,7 +1638,7 @@ void CommandNavRecallSelectedSet( void )
 
 	TheNavMesh->CommandNavRecallSelectedSet();
 }
-static ConCommand nav_recall_selected_set( "nav_recall_selected_set", CommandNavRecallSelectedSet, "Re-selects the stored selected set.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_recall_selected_set( "plugin_nav_recall_selected_set", CommandNavRecallSelectedSet, "Re-selects the stored selected set.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -1668,7 +1649,7 @@ void CommandNavAddToSelectedSet( void )
 
 	TheNavMesh->CommandNavAddToSelectedSet();
 }
-static ConCommand nav_add_to_selected_set( "nav_add_to_selected_set", CommandNavAddToSelectedSet, "Add current area to the selected set.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_add_to_selected_set( "plugin_nav_add_to_selected_set", CommandNavAddToSelectedSet, "Add current area to the selected set.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -1689,7 +1670,7 @@ void CommandNavRemoveFromSelectedSet( void )
 
 	TheNavMesh->CommandNavRemoveFromSelectedSet();
 }
-static ConCommand nav_remove_from_selected_set( "nav_remove_from_selected_set", CommandNavRemoveFromSelectedSet, "Remove current area from the selected set.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_remove_from_selected_set( "plugin_nav_remove_from_selected_set", CommandNavRemoveFromSelectedSet, "Remove current area from the selected set.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -1700,7 +1681,7 @@ void CommandNavToggleInSelectedSet( void )
 
 	TheNavMesh->CommandNavToggleInSelectedSet();
 }
-static ConCommand nav_toggle_in_selected_set( "nav_toggle_in_selected_set", CommandNavToggleInSelectedSet, "Remove current area from the selected set.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_toggle_in_selected_set( "plugin_nav_toggle_in_selected_set", CommandNavToggleInSelectedSet, "Remove current area from the selected set.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -1711,7 +1692,7 @@ void CommandNavClearSelectedSet( void )
 
 	TheNavMesh->CommandNavClearSelectedSet();
 }
-static ConCommand nav_clear_selected_set( "nav_clear_selected_set", CommandNavClearSelectedSet, "Clear the selected set.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_clear_selected_set( "plugin_nav_clear_selected_set", CommandNavClearSelectedSet, "Clear the selected set.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //----------------------------------------------------------------------------------
@@ -1823,7 +1804,7 @@ void CommandNavBeginSelecting( void )
 
 	TheNavMesh->CommandNavBeginSelecting();
 }
-static ConCommand nav_begin_selecting( "nav_begin_selecting", CommandNavBeginSelecting, "Start continuously adding to the selected set.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_begin_selecting( "plugin_nav_begin_selecting", CommandNavBeginSelecting, "Start continuously adding to the selected set.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -1834,7 +1815,7 @@ void CommandNavEndSelecting( void )
 
 	TheNavMesh->CommandNavEndSelecting();
 }
-static ConCommand nav_end_selecting( "nav_end_selecting", CommandNavEndSelecting, "Stop continuously adding to the selected set.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_end_selecting( "plugin_nav_end_selecting", CommandNavEndSelecting, "Stop continuously adding to the selected set.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -1845,7 +1826,7 @@ void CommandNavBeginDragSelecting( void )
 
 	TheNavMesh->CommandNavBeginDragSelecting();
 }
-static ConCommand nav_begin_drag_selecting( "nav_begin_drag_selecting", CommandNavBeginDragSelecting, "Start dragging a selection area.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_begin_drag_selecting( "plugin_nav_begin_drag_selecting", CommandNavBeginDragSelecting, "Start dragging a selection area.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -1856,7 +1837,7 @@ void CommandNavEndDragSelecting( void )
 
 	TheNavMesh->CommandNavEndDragSelecting();
 }
-static ConCommand nav_end_drag_selecting( "nav_end_drag_selecting", CommandNavEndDragSelecting, "Stop dragging a selection area.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_end_drag_selecting( "plugin_nav_end_drag_selecting", CommandNavEndDragSelecting, "Stop dragging a selection area.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -1867,7 +1848,7 @@ void CommandNavBeginDragDeselecting( void )
 
 	TheNavMesh->CommandNavBeginDragDeselecting();
 }
-static ConCommand nav_begin_drag_deselecting( "nav_begin_drag_deselecting", CommandNavBeginDragDeselecting, "Start dragging a selection area.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_begin_drag_deselecting( "plugin_nav_begin_drag_deselecting", CommandNavBeginDragDeselecting, "Start dragging a selection area.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -1878,7 +1859,7 @@ void CommandNavEndDragDeselecting( void )
 
 	TheNavMesh->CommandNavEndDragDeselecting();
 }
-static ConCommand nav_end_drag_deselecting( "nav_end_drag_deselecting", CommandNavEndDragDeselecting, "Stop dragging a selection area.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_end_drag_deselecting( "plugin_nav_end_drag_deselecting", CommandNavEndDragDeselecting, "Stop dragging a selection area.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -1889,7 +1870,7 @@ void CommandNavRaiseDragVolumeMax( void )
 
 	TheNavMesh->CommandNavRaiseDragVolumeMax();
 }
-static ConCommand nav_raise_drag_volume_max( "nav_raise_drag_volume_max", CommandNavRaiseDragVolumeMax, "Raise the top of the drag select volume.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_raise_drag_volume_max( "plugin_nav_raise_drag_volume_max", CommandNavRaiseDragVolumeMax, "Raise the top of the drag select volume.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -1900,7 +1881,7 @@ void CommandNavLowerDragVolumeMax( void )
 
 	TheNavMesh->CommandNavLowerDragVolumeMax();
 }
-static ConCommand nav_lower_drag_volume_max( "nav_lower_drag_volume_max", CommandNavLowerDragVolumeMax, "Lower the top of the drag select volume.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_lower_drag_volume_max( "plugin_nav_lower_drag_volume_max", CommandNavLowerDragVolumeMax, "Lower the top of the drag select volume.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -1911,7 +1892,7 @@ void CommandNavRaiseDragVolumeMin( void )
 
 	TheNavMesh->CommandNavRaiseDragVolumeMin();
 }
-static ConCommand nav_raise_drag_volume_min( "nav_raise_drag_volume_min", CommandNavRaiseDragVolumeMin, "Raise the bottom of the drag select volume.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_raise_drag_volume_min( "plugin_nav_raise_drag_volume_min", CommandNavRaiseDragVolumeMin, "Raise the bottom of the drag select volume.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -1922,7 +1903,7 @@ void CommandNavLowerDragVolumeMin( void )
 
 	TheNavMesh->CommandNavLowerDragVolumeMin();
 }
-static ConCommand nav_lower_drag_volume_min( "nav_lower_drag_volume_min", CommandNavLowerDragVolumeMin, "Lower the bottom of the drag select volume.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_lower_drag_volume_min( "plugin_nav_lower_drag_volume_min", CommandNavLowerDragVolumeMin, "Lower the bottom of the drag select volume.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -1933,7 +1914,7 @@ void CommandNavToggleSelecting( void )
 
 	TheNavMesh->CommandNavToggleSelecting();
 }
-static ConCommand nav_toggle_selecting( "nav_toggle_selecting", CommandNavToggleSelecting, "Start or stop continuously adding to the selected set.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_toggle_selecting( "plugin_nav_toggle_selecting", CommandNavToggleSelecting, "Start or stop continuously adding to the selected set.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -1944,7 +1925,7 @@ void CommandNavBeginDeselecting( void )
 
 	TheNavMesh->CommandNavBeginDeselecting();
 }
-static ConCommand nav_begin_deselecting( "nav_begin_deselecting", CommandNavBeginDeselecting, "Start continuously removing from the selected set.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_begin_deselecting( "plugin_nav_begin_deselecting", CommandNavBeginDeselecting, "Start continuously removing from the selected set.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -1955,7 +1936,7 @@ void CommandNavEndDeselecting( void )
 
 	TheNavMesh->CommandNavEndDeselecting();
 }
-static ConCommand nav_end_deselecting( "nav_end_deselecting", CommandNavEndDeselecting, "Stop continuously removing from the selected set.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_end_deselecting( "plugin_nav_end_deselecting", CommandNavEndDeselecting, "Stop continuously removing from the selected set.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -1966,7 +1947,7 @@ void CommandNavToggleDeselecting( void )
 
 	TheNavMesh->CommandNavToggleDeselecting();
 }
-static ConCommand nav_toggle_deselecting( "nav_toggle_deselecting", CommandNavToggleDeselecting, "Start or stop continuously removing from the selected set.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_toggle_deselecting( "plugin_nav_toggle_deselecting", CommandNavToggleDeselecting, "Start or stop continuously removing from the selected set.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -1987,7 +1968,7 @@ void CommandNavBeginShiftXY( void )
 
 	TheNavMesh->CommandNavBeginShiftXY();
 }
-static ConCommand nav_begin_shift_xy( "nav_begin_shift_xy", CommandNavBeginShiftXY, "Begin shifting the Selected Set.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_begin_shift_xy( "plugin_nav_begin_shift_xy", CommandNavBeginShiftXY, "Begin shifting the Selected Set.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -1998,7 +1979,7 @@ void CommandNavEndShiftXY( void )
 
 	TheNavMesh->CommandNavEndShiftXY();
 }
-static ConCommand nav_end_shift_xy( "nav_end_shift_xy", CommandNavEndShiftXY, "Finish shifting the Selected Set.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_end_shift_xy( "plugin_nav_end_shift_xy", CommandNavEndShiftXY, "Finish shifting the Selected Set.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2009,7 +1990,7 @@ void CommandNavSelectInvalidAreas( void )
 
 	TheNavMesh->CommandNavSelectInvalidAreas();
 }
-static ConCommand nav_select_invalid_areas( "nav_select_invalid_areas", CommandNavSelectInvalidAreas, "Adds all invalid areas to the Selected Set.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_select_invalid_areas( "plugin_nav_select_invalid_areas", CommandNavSelectInvalidAreas, "Adds all invalid areas to the Selected Set.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2070,7 +2051,7 @@ void CommandNavSplit( void )
 
 	TheNavMesh->CommandNavSplit();
 }
-static ConCommand nav_split( "nav_split", CommandNavSplit, "To split an Area into two, align the split line using your cursor and invoke the split command.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_split( "plugin_nav_split", CommandNavSplit, "To split an Area into two, align the split line using your cursor and invoke the split command.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2081,7 +2062,7 @@ void CommandNavMakeSniperSpots( void )
 
 	TheNavMesh->CommandNavMakeSniperSpots();
 }
-static ConCommand nav_make_sniper_spots( "nav_make_sniper_spots", CommandNavMakeSniperSpots, "Chops the marked area into disconnected sub-areas suitable for sniper spots.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_make_sniper_spots( "plugin_nav_make_sniper_spots", CommandNavMakeSniperSpots, "Chops the marked area into disconnected sub-areas suitable for sniper spots.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2092,7 +2073,7 @@ void CommandNavMerge( void )
 
 	TheNavMesh->CommandNavMerge();
 }
-static ConCommand nav_merge( "nav_merge", CommandNavMerge, "To merge two Areas into one, mark the first Area, highlight the second by pointing your cursor at it, and invoke the merge command.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_merge( "plugin_nav_merge", CommandNavMerge, "To merge two Areas into one, mark the first Area, highlight the second by pointing your cursor at it, and invoke the merge command.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2103,7 +2084,7 @@ void CommandNavMark( const CCommand &args )
 
 	TheNavMesh->CommandNavMark( args );
 }
-static ConCommand nav_mark( "nav_mark", CommandNavMark, "Marks the Area or Ladder under the cursor for manipulation by subsequent editing commands.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_mark( "plugin_nav_mark", CommandNavMark, "Marks the Area or Ladder under the cursor for manipulation by subsequent editing commands.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2114,7 +2095,7 @@ void CommandNavUnmark( void )
 
 	TheNavMesh->CommandNavUnmark();
 }
-static ConCommand nav_unmark( "nav_unmark", CommandNavUnmark, "Clears the marked Area or Ladder.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_unmark( "plugin_nav_unmark", CommandNavUnmark, "Clears the marked Area or Ladder.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2125,7 +2106,7 @@ void CommandNavBeginArea( void )
 
 	TheNavMesh->CommandNavBeginArea();
 }
-static ConCommand nav_begin_area( "nav_begin_area", CommandNavBeginArea, "Defines a corner of a new Area or Ladder. To complete the Area or Ladder, drag the opposite corner to the desired location and issue a 'nav_end_area' command.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_begin_area( "plugin_nav_begin_area", CommandNavBeginArea, "Defines a corner of a new Area or Ladder. To complete the Area or Ladder, drag the opposite corner to the desired location and issue a 'nav_end_area' command.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2136,7 +2117,7 @@ void CommandNavEndArea( void )
 
 	TheNavMesh->CommandNavEndArea();
 }
-static ConCommand nav_end_area( "nav_end_area", CommandNavEndArea, "Defines the second corner of a new Area or Ladder and creates it.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_end_area( "plugin_nav_end_area", CommandNavEndArea, "Defines the second corner of a new Area or Ladder and creates it.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2147,7 +2128,7 @@ void CommandNavConnect( void )
 
 	TheNavMesh->CommandNavConnect();
 }
-static ConCommand nav_connect( "nav_connect", CommandNavConnect, "To connect two Areas, mark the first Area, highlight the second Area, then invoke the connect command. Note that this creates a ONE-WAY connection from the first to the second Area. To make a two-way connection, also connect the second area to the first.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_connect( "plugin_nav_connect", CommandNavConnect, "To connect two Areas, mark the first Area, highlight the second Area, then invoke the connect command. Note that this creates a ONE-WAY connection from the first to the second Area. To make a two-way connection, also connect the second area to the first.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2158,7 +2139,7 @@ void CommandNavDisconnect( void )
 
 	TheNavMesh->CommandNavDisconnect();
 }
-static ConCommand nav_disconnect( "nav_disconnect", CommandNavDisconnect, "To disconnect two Areas, mark an Area, highlight a second Area, then invoke the disconnect command. This will remove all connections between the two Areas.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_disconnect( "plugin_nav_disconnect", CommandNavDisconnect, "To disconnect two Areas, mark an Area, highlight a second Area, then invoke the disconnect command. This will remove all connections between the two Areas.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2169,7 +2150,7 @@ void CommandNavDisconnectOutgoingOneWays( void )
 
 	TheNavMesh->CommandNavDisconnectOutgoingOneWays();
 }
-static ConCommand nav_disconnect_outgoing_oneways( "nav_disconnect_outgoing_oneways", CommandNavDisconnectOutgoingOneWays, "For each area in the selected set, disconnect all outgoing one-way connections.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_disconnect_outgoing_oneways( "plugin_nav_disconnect_outgoing_oneways", CommandNavDisconnectOutgoingOneWays, "For each area in the selected set, disconnect all outgoing one-way connections.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2180,7 +2161,7 @@ void CommandNavSplice( void )
 
 	TheNavMesh->CommandNavSplice();
 }
-static ConCommand nav_splice( "nav_splice", CommandNavSplice, "To splice, mark an area, highlight a second area, then invoke the splice command to create a new, connected area between them.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_splice( "plugin_nav_splice", CommandNavSplice, "To splice, mark an area, highlight a second area, then invoke the splice command to create a new, connected area between them.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2191,7 +2172,7 @@ void CommandNavCrouch( void )
 
 	TheNavMesh->CommandNavToggleAttribute( NAV_MESH_CROUCH );
 }
-static ConCommand nav_crouch( "nav_crouch", CommandNavCrouch, "Toggles the 'must crouch in this area' flag used by the AI system.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_crouch( "plugin_nav_crouch", CommandNavCrouch, "Toggles the 'must crouch in this area' flag used by the AI system.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2202,7 +2183,7 @@ void CommandNavPrecise( void )
 
 	TheNavMesh->CommandNavToggleAttribute( NAV_MESH_PRECISE );
 }
-static ConCommand nav_precise( "nav_precise", CommandNavPrecise, "Toggles the 'dont avoid obstacles' flag used by the AI system.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_precise( "plugin_nav_precise", CommandNavPrecise, "Toggles the 'dont avoid obstacles' flag used by the AI system.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2213,7 +2194,7 @@ void CommandNavJump( void )
 
 	TheNavMesh->CommandNavToggleAttribute( NAV_MESH_JUMP );
 }
-static ConCommand nav_jump( "nav_jump", CommandNavJump, "Toggles the 'traverse this area by jumping' flag used by the AI system.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_jump( "plugin_nav_jump", CommandNavJump, "Toggles the 'traverse this area by jumping' flag used by the AI system.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2224,7 +2205,7 @@ void CommandNavNoJump( void )
 
 	TheNavMesh->CommandNavToggleAttribute( NAV_MESH_NO_JUMP );
 }
-static ConCommand nav_no_jump( "nav_no_jump", CommandNavNoJump, "Toggles the 'dont jump in this area' flag used by the AI system.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_no_jump( "plugin_nav_no_jump", CommandNavNoJump, "Toggles the 'dont jump in this area' flag used by the AI system.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2235,7 +2216,7 @@ void CommandNavStop( void )
 
 	TheNavMesh->CommandNavToggleAttribute( NAV_MESH_STOP );
 }
-static ConCommand nav_stop( "nav_stop", CommandNavStop, "Toggles the 'must stop when entering this area' flag used by the AI system.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_stop( "plugin_nav_stop", CommandNavStop, "Toggles the 'must stop when entering this area' flag used by the AI system.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2246,7 +2227,7 @@ void CommandNavWalk( void )
 
 	TheNavMesh->CommandNavToggleAttribute( NAV_MESH_WALK );
 }
-static ConCommand nav_walk( "nav_walk", CommandNavWalk, "Toggles the 'traverse this area by walking' flag used by the AI system.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_walk( "plugin_nav_walk", CommandNavWalk, "Toggles the 'traverse this area by walking' flag used by the AI system.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2257,7 +2238,7 @@ void CommandNavRun( void )
 
 	TheNavMesh->CommandNavToggleAttribute( NAV_MESH_RUN );
 }
-static ConCommand nav_run( "nav_run", CommandNavRun, "Toggles the 'traverse this area by running' flag used by the AI system.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_run( "plugin_nav_run", CommandNavRun, "Toggles the 'traverse this area by running' flag used by the AI system.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2268,7 +2249,7 @@ void CommandNavAvoid( void )
 
 	TheNavMesh->CommandNavToggleAttribute( NAV_MESH_AVOID );
 }
-static ConCommand nav_avoid( "nav_avoid", CommandNavAvoid, "Toggles the 'avoid this area when possible' flag used by the AI system.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_avoid( "plugin_nav_avoid", CommandNavAvoid, "Toggles the 'avoid this area when possible' flag used by the AI system.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2279,7 +2260,7 @@ void CommandNavTransient( void )
 
 	TheNavMesh->CommandNavToggleAttribute( NAV_MESH_TRANSIENT );
 }
-static ConCommand nav_transient( "nav_transient", CommandNavTransient, "Toggles the 'area is transient and may become blocked' flag used by the AI system.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_transient( "plugin_nav_transient", CommandNavTransient, "Toggles the 'area is transient and may become blocked' flag used by the AI system.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2290,7 +2271,7 @@ void CommandNavDontHide( void )
 
 	TheNavMesh->CommandNavToggleAttribute( NAV_MESH_DONT_HIDE );
 }
-static ConCommand nav_dont_hide( "nav_dont_hide", CommandNavDontHide, "Toggles the 'area is not suitable for hiding spots' flag used by the AI system.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_dont_hide( "plugin_nav_dont_hide", CommandNavDontHide, "Toggles the 'area is not suitable for hiding spots' flag used by the AI system.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2301,7 +2282,7 @@ void CommandNavStand( void )
 
 	TheNavMesh->CommandNavToggleAttribute( NAV_MESH_STAND );
 }
-static ConCommand nav_stand( "nav_stand", CommandNavStand, "Toggles the 'stand while hiding' flag used by the AI system.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_stand( "plugin_nav_stand", CommandNavStand, "Toggles the 'stand while hiding' flag used by the AI system.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2312,7 +2293,7 @@ void CommandNavNoHostages( void )
 
 	TheNavMesh->CommandNavToggleAttribute( NAV_MESH_NO_HOSTAGES );
 }
-static ConCommand nav_no_hostages( "nav_no_hostages", CommandNavNoHostages, "Toggles the 'hostages cannot use this area' flag used by the AI system.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_no_hostages( "plugin_nav_no_hostages", CommandNavNoHostages, "Toggles the 'hostages cannot use this area' flag used by the AI system.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2323,7 +2304,7 @@ void CommandNavStrip( void )
 
 	TheNavMesh->StripNavigationAreas();
 }
-static ConCommand nav_strip( "nav_strip", CommandNavStrip, "Strips all Hiding Spots, Approach Points, and Encounter Spots from the current Area.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_strip( "plugin_nav_strip", CommandNavStrip, "Strips all Hiding Spots, Approach Points, and Encounter Spots from the current Area.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2342,7 +2323,7 @@ void CommandNavSave( void )
 		Msg( "ERROR: Cannot save navigation map '%s'.\n", (filename) ? filename : "(null)" );
 	}
 }
-static ConCommand nav_save( "nav_save", CommandNavSave, "Saves the current Navigation Mesh to disk.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_save( "plugin_nav_save", CommandNavSave, "Saves the current Navigation Mesh to disk.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2356,7 +2337,7 @@ void CommandNavLoad( void )
 		Msg( "ERROR: Navigation Mesh load failed.\n" );
 	}
 }
-static ConCommand nav_load( "nav_load", CommandNavLoad, "Loads the Navigation Mesh for the current map.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_load( "plugin_nav_load", CommandNavLoad, "Loads the Navigation Mesh for the current map.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2393,7 +2374,7 @@ void CommandNavUsePlace( const CCommand &args )
 		}
 	}
 }
-static ConCommand nav_use_place( "nav_use_place", CommandNavUsePlace, "If used without arguments, all available Places will be listed. If a Place argument is given, the current Place is set.", FCVAR_GAMEDLL | FCVAR_CHEAT, PlaceNameAutocompleteCallback );
+static ConCommand nav_use_place( "plugin_nav_use_place", CommandNavUsePlace, "If used without arguments, all available Places will be listed. If a Place argument is given, the current Place is set.", FCVAR_GAMEDLL | FCVAR_CHEAT, PlaceNameAutocompleteCallback );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2430,7 +2411,7 @@ void CommandNavPlaceReplace( const CCommand &args )
 		}
 	}
 }
-static ConCommand nav_place_replace( "nav_place_replace", CommandNavPlaceReplace, "Replaces all instances of the first place with the second place.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_place_replace( "plugin_nav_place_replace", CommandNavPlaceReplace, "Replaces all instances of the first place with the second place.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2446,13 +2427,8 @@ void CommandNavPlaceList( void )
 		CNavArea *area = TheNavAreas[ nit ];
 
 		Place place = area->GetPlace();
-
-		if ( place )
-		{
-			if ( !placeDirectory.HasElement( place ) )
-			{
-				placeDirectory.AddToTail( place );
-			}
+		if ( place  && !placeDirectory.HasElement( place ) ) {
+			placeDirectory.AddToTail( place );
 		}
 	}
 
@@ -2462,7 +2438,7 @@ void CommandNavPlaceList( void )
 		Msg( "    %s\n", TheNavMesh->PlaceToName( placeDirectory[i] ) );
 	}
 }
-static ConCommand nav_place_list( "nav_place_list", CommandNavPlaceList, "Lists all place names used in the map.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_place_list( "plugin_nav_place_list", CommandNavPlaceList, "Lists all place names used in the map.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2473,7 +2449,7 @@ void CommandNavTogglePlaceMode( void )
 
 	TheNavMesh->CommandNavTogglePlaceMode();
 }
-static ConCommand nav_toggle_place_mode( "nav_toggle_place_mode", CommandNavTogglePlaceMode, "Toggle the editor into and out of Place mode. Place mode allows labelling of Area with Place names.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_toggle_place_mode( "plugin_nav_toggle_place_mode", CommandNavTogglePlaceMode, "Toggle the editor into and out of Place mode. Place mode allows labelling of Area with Place names.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2493,7 +2469,7 @@ void CommandNavSetPlaceMode( const CCommand &args )
 		TheNavMesh->CommandNavTogglePlaceMode();
 	}
 }
-static ConCommand nav_set_place_mode( "nav_set_place_mode", CommandNavSetPlaceMode, "Sets the editor into or out of Place mode. Place mode allows labelling of Area with Place names.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_set_place_mode( "plugin_nav_set_place_mode", CommandNavSetPlaceMode, "Sets the editor into or out of Place mode. Place mode allows labelling of Area with Place names.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2504,7 +2480,7 @@ void CommandNavPlaceFloodFill( void )
 
 	TheNavMesh->CommandNavPlaceFloodFill();
 }
-static ConCommand nav_place_floodfill( "nav_place_floodfill", CommandNavPlaceFloodFill, "Sets the Place of the Area under the cursor to the curent Place, and 'flood-fills' the Place to all adjacent Areas. Flood-filling stops when it hits an Area with the same Place, or a different Place than that of the initial Area.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_place_floodfill( "plugin_nav_place_floodfill", CommandNavPlaceFloodFill, "Sets the Place of the Area under the cursor to the curent Place, and 'flood-fills' the Place to all adjacent Areas. Flood-filling stops when it hits an Area with the same Place, or a different Place than that of the initial Area.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2515,7 +2491,7 @@ void CommandNavPlaceSet( void )
 
 	TheNavMesh->CommandNavPlaceSet();
 }
-static ConCommand nav_place_set( "nav_place_set", CommandNavPlaceSet, "Sets the Place of all selected areas to the current Place.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_place_set( "plugin_nav_place_set", CommandNavPlaceSet, "Sets the Place of all selected areas to the current Place.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2526,7 +2502,7 @@ void CommandNavPlacePick( void )
 
 	TheNavMesh->CommandNavPlacePick();
 }
-static ConCommand nav_place_pick( "nav_place_pick", CommandNavPlacePick, "Sets the current Place to the Place of the Area under the cursor.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_place_pick( "plugin_nav_place_pick", CommandNavPlacePick, "Sets the current Place to the Place of the Area under the cursor.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2537,7 +2513,7 @@ void CommandNavTogglePlacePainting( void )
 
 	TheNavMesh->CommandNavTogglePlacePainting();
 }
-static ConCommand nav_toggle_place_painting( "nav_toggle_place_painting", CommandNavTogglePlacePainting, "Toggles Place Painting mode. When Place Painting, pointing at an Area will 'paint' it with the current Place.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_toggle_place_painting( "plugin_nav_toggle_place_painting", CommandNavTogglePlacePainting, "Toggles Place Painting mode. When Place Painting, pointing at an Area will 'paint' it with the current Place.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2548,7 +2524,7 @@ void CommandNavMarkUnnamed( void )
 
 	TheNavMesh->CommandNavMarkUnnamed();
 }
-static ConCommand nav_mark_unnamed( "nav_mark_unnamed", CommandNavMarkUnnamed, "Mark an Area with no Place name. Useful for finding stray areas missed when Place Painting.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_mark_unnamed( "plugin_nav_mark_unnamed", CommandNavMarkUnnamed, "Mark an Area with no Place name. Useful for finding stray areas missed when Place Painting.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2559,7 +2535,7 @@ void CommandNavCornerSelect( void )
 
 	TheNavMesh->CommandNavCornerSelect();
 }
-static ConCommand nav_corner_select( "nav_corner_select", CommandNavCornerSelect, "Select a corner of the currently marked Area. Use multiple times to access all four corners.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_corner_select( "plugin_nav_corner_select", CommandNavCornerSelect, "Select a corner of the currently marked Area. Use multiple times to access all four corners.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2600,7 +2576,7 @@ void CommandNavWarpToMark( void )
 
 	TheNavMesh->CommandNavWarpToMark();
 }
-static ConCommand nav_warp_to_mark( "nav_warp_to_mark", CommandNavWarpToMark, "Warps the player to the marked area.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_warp_to_mark( "plugin_nav_warp_to_mark", CommandNavWarpToMark, "Warps the player to the marked area.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2611,7 +2587,7 @@ void CommandNavLadderFlip( void )
 
 	TheNavMesh->CommandNavLadderFlip();
 }
-static ConCommand nav_ladder_flip( "nav_ladder_flip", CommandNavLadderFlip, "Flips the selected ladder's direction.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_ladder_flip( "plugin_nav_ladder_flip", CommandNavLadderFlip, "Flips the selected ladder's direction.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2622,7 +2598,7 @@ void CommandNavGenerate( void )
 
 	TheNavMesh->BeginGeneration();
 }
-static ConCommand nav_generate( "nav_generate", CommandNavGenerate, "Generate a Navigation Mesh for the current map and save it to disk.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_generate( "plugin_nav_generate", CommandNavGenerate, "Generate a Navigation Mesh for the current map and save it to disk.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2633,7 +2609,7 @@ void CommandNavGenerateIncremental( void )
 
 	TheNavMesh->BeginGeneration( INCREMENTAL_GENERATION );
 }
-static ConCommand nav_generate_incremental( "nav_generate_incremental", CommandNavGenerateIncremental, "Generate a Navigation Mesh for the current map and save it to disk.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_generate_incremental( "plugin_nav_generate_incremental", CommandNavGenerateIncremental, "Generate a Navigation Mesh for the current map and save it to disk.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2647,7 +2623,7 @@ void CommandNavAnalyze( void )
 		TheNavMesh->BeginAnalysis();
 	}
 }
-static ConCommand nav_analyze( "nav_analyze", CommandNavAnalyze, "Re-analyze the current Navigation Mesh and save it to disk.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_analyze( "plugin_nav_analyze", CommandNavAnalyze, "Re-analyze the current Navigation Mesh and save it to disk.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2676,7 +2652,7 @@ void CommandNavAnalyzeScripted( const CCommand &args )
 		TheNavMesh->BeginAnalysis( true );
 	}
 }
-static ConCommand nav_analyze_scripted( "nav_analyze_scripted", CommandNavAnalyzeScripted, "commandline hook to run a nav_analyze and then quit.", FCVAR_GAMEDLL | FCVAR_CHEAT | FCVAR_HIDDEN );
+static ConCommand nav_analyze_scripted( "plugin_nav_analyze_scripted", CommandNavAnalyzeScripted, "commandline hook to run a nav_analyze and then quit.", FCVAR_GAMEDLL | FCVAR_CHEAT | FCVAR_HIDDEN );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2729,7 +2705,7 @@ void CNavMesh::CommandNavMarkWalkable( void )
 
 	Msg( "Walkable position marked.\n" );
 }
-static ConCommand nav_mark_walkable( "nav_mark_walkable", CommandNavMarkWalkable, "Mark the current location as a walkable position. These positions are used as seed locations when sampling the map to generate a Navigation Mesh.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_mark_walkable( "plugin_nav_mark_walkable", CommandNavMarkWalkable, "Mark the current location as a walkable position. These positions are used as seed locations when sampling the map to generate a Navigation Mesh.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2740,7 +2716,7 @@ void CommandNavClearWalkableMarks( void )
 
 	TheNavMesh->ClearWalkableSeeds();
 }
-static ConCommand nav_clear_walkable_marks( "nav_clear_walkable_marks", CommandNavClearWalkableMarks, "Erase any previously placed walkable positions.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_clear_walkable_marks( "plugin_nav_clear_walkable_marks", CommandNavClearWalkableMarks, "Erase any previously placed walkable positions.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2752,7 +2728,7 @@ void CommandNavCompressID( void )
 	CNavArea::CompressIDs(TheNavMesh);
 	CNavLadder::CompressIDs(TheNavMesh);
 }
-static ConCommand nav_compress_id( "nav_compress_id", CommandNavCompressID, "Re-orders area and ladder ID's so they are continuous.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_compress_id( "plugin_nav_compress_id", CommandNavCompressID, "Re-orders area and ladder ID's so they are continuous.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2771,7 +2747,7 @@ void CommandNavShowLadderBounds( void )
 		NDebugOverlay::Box( vec3_origin, mins, maxs, 0, 255, 0, 0, 600 );
 	}
 }
-static ConCommand nav_show_ladder_bounds( "nav_show_ladder_bounds", CommandNavShowLadderBounds, "Draws the bounding boxes of all func_ladders in the map.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_show_ladder_bounds( "plugin_nav_show_ladder_bounds", CommandNavShowLadderBounds, "Draws the bounding boxes of all func_ladders in the map.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 #endif
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2782,7 +2758,7 @@ void CommandNavBuildLadder( void )
 
 	TheNavMesh->CommandNavBuildLadder();
 }
-static ConCommand nav_build_ladder( "nav_build_ladder", CommandNavBuildLadder, "Attempts to build a nav ladder on the climbable surface under the cursor.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_build_ladder( "plugin_nav_build_ladder", CommandNavBuildLadder, "Attempts to build a nav ladder on the climbable surface under the cursor.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------
@@ -2915,7 +2891,7 @@ void NavEditClearAttribute( const CCommand &args )
 	
 	Msg( "Unknown attribute '%s'", args[1] );		
 }
-static ConCommand NavClearAttribute( "nav_clear_attribute", NavEditClearAttribute, "Remove given nav attribute from all areas in the selected set.", FCVAR_CHEAT, NavAttributeAutocomplete );
+static ConCommand NavClearAttribute( "plugin_nav_clear_attribute", NavEditClearAttribute, "Remove given nav attribute from all areas in the selected set.", FCVAR_CHEAT, NavAttributeAutocomplete );
 
 
 //--------------------------------------------------------------------------------------------------------
@@ -2939,7 +2915,7 @@ void NavEditMarkAttribute( const CCommand &args )
 
 	Msg( "Unknown attribute '%s'", args[1] );		
 }
-static ConCommand NavMarkAttribute( "nav_mark_attribute", NavEditMarkAttribute, "Set nav attribute for all areas in the selected set.", FCVAR_CHEAT, NavAttributeAutocomplete );
+static ConCommand NavMarkAttribute( "plugin_nav_mark_attribute", NavEditMarkAttribute, "Set nav attribute for all areas in the selected set.", FCVAR_CHEAT, NavAttributeAutocomplete );
 
 
 /* IN PROGRESS:
@@ -2951,7 +2927,7 @@ void CommandNavPickArea( void )
 
 	TheNavMesh->CommandNavPickArea();
 }
-static ConCommand nav_pick_area( "nav_pick_area", CommandNavPickArea, "Marks an area (and corner) based on the surface under the cursor.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_pick_area( "plugin_nav_pick_area", CommandNavPickArea, "Marks an area (and corner) based on the surface under the cursor.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2962,7 +2938,7 @@ void CommandNavResizeHorizontal( void )
 
 	TheNavMesh->CommandNavResizeHorizontal();
 }
-static ConCommand nav_resize_horizontal( "nav_resize_horizontal", CommandNavResizeHorizontal, "TODO", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_resize_horizontal( "plugin_nav_resize_horizontal", CommandNavResizeHorizontal, "TODO", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2973,7 +2949,7 @@ void CommandNavResizeVertical( void )
 
 	TheNavMesh->CommandNavResizeVertical();
 }
-static ConCommand nav_resize_vertical( "nav_resize_vertical", CommandNavResizeVertical, "TODO", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_resize_vertical( "plugin_nav_resize_vertical", CommandNavResizeVertical, "TODO", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2984,7 +2960,7 @@ void CommandNavResizeEnd( void )
 
 	TheNavMesh->CommandNavResizeEnd();
 }
-static ConCommand nav_resize_end( "nav_resize_end", CommandNavResizeEnd, "TODO", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_resize_end( "plugin_nav_resize_end", CommandNavResizeEnd, "TODO", FCVAR_GAMEDLL | FCVAR_CHEAT );
 */
 
 

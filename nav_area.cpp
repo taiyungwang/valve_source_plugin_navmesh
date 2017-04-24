@@ -51,20 +51,20 @@ CNavArea *CNavArea::m_openListTail = NULL;
 bool CNavArea::m_isReset = false;
 uint32 CNavArea::s_nCurrVisTestCounter = 0;
 
-ConVar nav_coplanar_slope_limit( "nav_coplanar_slope_limit", "0.99", FCVAR_CHEAT );
-ConVar nav_coplanar_slope_limit_displacement( "nav_coplanar_slope_limit_displacement", "0.7", FCVAR_CHEAT );
-ConVar nav_split_place_on_ground( "nav_split_place_on_ground", "0", FCVAR_CHEAT, "If true, nav areas will be placed flush with the ground when split." );
-ConVar nav_area_bgcolor( "nav_area_bgcolor", "0 0 0 30", FCVAR_CHEAT, "RGBA color to draw as the background color for nav areas while editing." );
-ConVar nav_corner_adjust_adjacent( "nav_corner_adjust_adjacent", "18", FCVAR_CHEAT, "radius used to raise/lower corners in nearby areas when raising/lowering corners." );
-ConVar nav_show_light_intensity( "nav_show_light_intensity", "0", FCVAR_CHEAT );
-ConVar nav_debug_blocked( "nav_debug_blocked", "0", FCVAR_CHEAT );
-ConVar nav_show_contiguous( "nav_show_continguous", "0", FCVAR_CHEAT, "Highlight non-contiguous connections" );
+ConVar nav_coplanar_slope_limit( "plugin_nav_coplanar_slope_limit", "0.99", FCVAR_CHEAT );
+ConVar nav_coplanar_slope_limit_displacement( "plugin_nav_coplanar_slope_limit_displacement", "0.7", FCVAR_CHEAT );
+ConVar nav_split_place_on_ground( "plugin_nav_split_place_on_ground", "0", FCVAR_CHEAT, "If true, nav areas will be placed flush with the ground when split." );
+ConVar nav_area_bgcolor( "plugin_nav_area_bgcolor", "0 0 0 30", FCVAR_CHEAT, "RGBA color to draw as the background color for nav areas while editing." );
+ConVar nav_corner_adjust_adjacent( "plugin_nav_corner_adjust_adjacent", "18", FCVAR_CHEAT, "radius used to raise/lower corners in nearby areas when raising/lowering corners." );
+ConVar nav_show_light_intensity( "plugin_nav_show_light_intensity", "0", FCVAR_CHEAT );
+ConVar nav_debug_blocked( "plugin_nav_debug_blocked", "0", FCVAR_CHEAT );
+ConVar nav_show_contiguous( "plugin_nav_show_continguous", "0", FCVAR_CHEAT, "Highlight non-contiguous connections" );
 
 const float DEF_NAV_VIEW_DISTANCE = 1500.0;
-ConVar nav_max_view_distance( "nav_max_view_distance", "6000", FCVAR_CHEAT, "Maximum range for precomputed nav mesh visibility (0 = default 1500 units)" );
-ConVar nav_update_visibility_on_edit( "nav_update_visibility_on_edit", "0", FCVAR_CHEAT, "If nonzero editing the mesh will incrementally recompue visibility" );
-ConVar nav_potentially_visible_dot_tolerance( "nav_potentially_visible_dot_tolerance", "0.98", FCVAR_CHEAT );
-ConVar nav_show_potentially_visible( "nav_show_potentially_visible", "0", FCVAR_CHEAT, "Show areas that are potentially visible from the current nav area" );
+ConVar nav_max_view_distance( "plugin_nav_max_view_distance", "6000", FCVAR_CHEAT, "Maximum range for precomputed nav mesh visibility (0 = default 1500 units)" );
+ConVar nav_update_visibility_on_edit( "plugin_nav_update_visibility_on_edit", "0", FCVAR_CHEAT, "If nonzero editing the mesh will incrementally recompue visibility" );
+ConVar nav_potentially_visible_dot_tolerance( "plugin_nav_potentially_visible_dot_tolerance", "0.98", FCVAR_CHEAT );
+ConVar nav_show_potentially_visible( "plugin_nav_show_potentially_visible", "0", FCVAR_CHEAT, "Show areas that are potentially visible from the current nav area" );
 
 Color s_selectedSetColor( 255, 255, 200, 96 );
 Color s_selectedSetBorderColor( 100, 100, 0, 255 );
@@ -93,7 +93,6 @@ bool ForEachActor( Functor &func )
 			continue;
 		}
 #endif // NEXT_BOT
-
 		if ( !func( ent ) )
 		{
 			return false;
@@ -116,7 +115,7 @@ static void SelectedSetColorChaged( IConVar *var, const char *pOldValue, float f
 	ConVarRef colorVar( var->GetName() );
 
 	Color *color = &s_selectedSetColor;
-	if ( FStrEq( var->GetName(), "nav_selected_set_border_color" ) )
+	if ( FStrEq( var->GetName(), "plugin_nav_selected_set_border_color" ) )
 	{
 		color = &s_selectedSetBorderColor;
 	}
@@ -138,8 +137,8 @@ static void SelectedSetColorChaged( IConVar *var, const char *pOldValue, float f
 	}
 }
 
-ConVar nav_selected_set_color( "nav_selected_set_color", "255 255 200 96", FCVAR_CHEAT, "Color used to draw the selected set background while editing.", false, 0.0f, false, 0.0f, SelectedSetColorChaged );
-ConVar nav_selected_set_border_color( "nav_selected_set_border_color", "100 100 0 255", FCVAR_CHEAT, "Color used to draw the selected set borders while editing.", false, 0.0f, false, 0.0f, SelectedSetColorChaged );
+ConVar nav_selected_set_color( "plugin_nav_selected_set_color", "255 255 200 96", FCVAR_CHEAT, "Color used to draw the selected set background while editing.", false, 0.0f, false, 0.0f, SelectedSetColorChaged );
+ConVar nav_selected_set_border_color( "plugin_nav_selected_set_border_color", "100 100 0 255", FCVAR_CHEAT, "Color used to draw the selected set borders while editing.", false, 0.0f, false, 0.0f, SelectedSetColorChaged );
 
 
 float CountdownTimer::Now( void ) const {
@@ -710,17 +709,14 @@ void CNavArea::ConnectElevators( void )
 						FOR_EACH_VEC( TheNavAreas, it )
 						{
 							CNavArea *area = TheNavAreas[ it ];
-
-							if ( area->IsOverlapping( elevatorExtent ) )
+							if ( area->IsOverlapping( elevatorExtent )
+									&& area->GetCenter().z <= otherFloor->height + tolerance && area->GetCenter().z >= otherFloor->height - tolerance )
 							{
-								if ( area->GetCenter().z <= otherFloor->height + tolerance && area->GetCenter().z >= otherFloor->height - tolerance )
+								float size = area->GetSizeX() * area->GetSizeY();
+								if ( size > floorAreaSize )
 								{
-									float size = area->GetSizeX() * area->GetSizeY();
-									if ( size > floorAreaSize )
-									{
-										floorArea = area;
-										floorAreaSize = size;
-									}
+									floorArea = area;
+									floorAreaSize = size;
 								}
 							}
 						}
@@ -1222,10 +1218,8 @@ bool CNavArea::SplitEdit( bool splitAlongX, float splitEdge, CNavArea **outAlpha
 		// Y
 
 		// don't do split if at edge of area
-		if (splitEdge <= m_nwCorner.y + 1.0f)
-			return false;
-
-		if (splitEdge >= m_seCorner.y - 1.0f)
+		if (splitEdge <= m_nwCorner.y + 1.0f
+				|| splitEdge >= m_seCorner.y - 1.0f)
 			return false;
 
 		alpha = TheNavMesh->CreateArea();
@@ -1259,10 +1253,8 @@ bool CNavArea::SplitEdit( bool splitAlongX, float splitEdge, CNavArea **outAlpha
 		// Y
 
 		// don't do split if at edge of area
-		if (splitEdge <= m_nwCorner.x + 1.0f)
-			return false;
-
-		if (splitEdge >= m_seCorner.x - 1.0f)
+		if (splitEdge <= m_nwCorner.x + 1.0f
+				|| splitEdge >= m_seCorner.x - 1.0f)
 			return false;
 
 		alpha = TheNavMesh->CreateArea();
@@ -1425,28 +1417,21 @@ bool CNavArea::IsConnected( const CNavArea *area, NavDirType dir ) const
 /**
  * Compute change in actual ground height from this area to given area
  */
-float CNavArea::ComputeGroundHeightChange( const CNavArea *area )
-{
-	VPROF_BUDGET( "CNavArea::ComputeHeightChange", "NextBot" );
+float CNavArea::ComputeGroundHeightChange(const CNavArea *area) {
+	VPROF_BUDGET("CNavArea::ComputeHeightChange", "NextBot");
 
 	Vector closeFrom, closeTo;
-	area->GetClosestPointOnArea( GetCenter(), &closeTo );
-	GetClosestPointOnArea( area->GetCenter(), &closeFrom );
+	area->GetClosestPointOnArea(GetCenter(), &closeTo);
+	GetClosestPointOnArea(area->GetCenter(), &closeFrom);
 
 	// find actual ground height at each point in case 
 	// areas are below/above actual terrain
 	float toZ, fromZ;
-	if ( TheNavMesh->GetSimpleGroundHeight( closeTo + Vector( 0, 0, StepHeight ), &toZ ) == false )
-	{
-		return 0.0f;
-	}
-
-	if ( TheNavMesh->GetSimpleGroundHeight( closeFrom + Vector( 0, 0, StepHeight ), &fromZ ) == false )
-	{
-		return 0.0f;
-	}
-
-	return toZ - fromZ;
+	return TheNavMesh->GetSimpleGroundHeight(
+			closeTo + Vector(0, 0, StepHeight), &toZ)
+			|| TheNavMesh->GetSimpleGroundHeight(
+					closeFrom + Vector(0, 0, StepHeight), &fromZ) ?
+			0.0f : toZ - fromZ;
 }
 
 
@@ -1626,13 +1611,11 @@ bool CNavArea::SpliceEdit( CNavArea *other )
 {
 	CNavArea *newArea = NULL;
 	Vector nw, ne, se, sw;
-
+	float top = MAX( m_nwCorner.y, other->m_nwCorner.y );
+	float bottom = MIN( m_seCorner.y, other->m_seCorner.y );
 	if (m_nwCorner.x > other->m_seCorner.x)
 	{
 		// 'this' is east of 'other'
-		float top = MAX( m_nwCorner.y, other->m_nwCorner.y );
-		float bottom = MIN( m_seCorner.y, other->m_seCorner.y );
-
 		nw.x = other->m_seCorner.x;
 		nw.y = top;
 		nw.z = other->GetZ( nw );
@@ -1667,9 +1650,6 @@ bool CNavArea::SpliceEdit( CNavArea *other )
 	else if (m_seCorner.x < other->m_nwCorner.x)
 	{
 		// 'this' is west of 'other'
-		float top = MAX( m_nwCorner.y, other->m_nwCorner.y );
-		float bottom = MIN( m_seCorner.y, other->m_seCorner.y );
-
 		nw.x = m_seCorner.x;
 		nw.y = top;
 		nw.z = GetZ( nw );
@@ -1703,12 +1683,11 @@ bool CNavArea::SpliceEdit( CNavArea *other )
 	}
 	else	// 'this' overlaps in X
 	{
+		float left = MAX( m_nwCorner.x, other->m_nwCorner.x );
+		float right = MIN( m_seCorner.x, other->m_seCorner.x );
 		if (m_nwCorner.y > other->m_seCorner.y)
 		{
 			// 'this' is south of 'other'
-			float left = MAX( m_nwCorner.x, other->m_nwCorner.x );
-			float right = MIN( m_seCorner.x, other->m_seCorner.x );
-
 			nw.x = left;
 			nw.y = other->m_seCorner.y;
 			nw.z = other->GetZ( nw );
@@ -1743,9 +1722,6 @@ bool CNavArea::SpliceEdit( CNavArea *other )
 		else if (m_seCorner.y < other->m_nwCorner.y)
 		{
 			// 'this' is north of 'other'
-			float left = MAX( m_nwCorner.x, other->m_nwCorner.x );
-			float right = MIN( m_seCorner.x, other->m_seCorner.x );
-
 			nw.x = left;
 			nw.y = m_seCorner.y;
 			nw.z = GetZ( nw );
@@ -1819,18 +1795,12 @@ bool CNavArea::MergeEdit(CNavMesh* TheNavMesh, CNavArea *adj )
 
 	// check that these areas can be merged
 	const float tolerance = 1.0f;
-	bool merge = false;
-	if (fabs( m_nwCorner.x - adj->m_nwCorner.x ) < tolerance && 
-		fabs( m_seCorner.x - adj->m_seCorner.x ) < tolerance)
-		merge = true;
-
-	if (fabs( m_nwCorner.y - adj->m_nwCorner.y ) < tolerance && 
-		fabs( m_seCorner.y - adj->m_seCorner.y ) < tolerance)
-		merge = true;
-
-	if (merge == false)
+	if (!((fabs(m_nwCorner.x - adj->m_nwCorner.x) < tolerance
+			&& fabs(m_seCorner.x - adj->m_seCorner.x) < tolerance)
+			|| (fabs(m_nwCorner.y - adj->m_nwCorner.y) < tolerance
+					&& fabs(m_seCorner.y - adj->m_seCorner.y) < tolerance))) {
 		return false;
-
+	}
 	Vector originalNWCorner = m_nwCorner;
 	Vector originalSECorner = m_seCorner;
 	
@@ -1944,42 +1914,32 @@ void CNavArea::Strip( void )
  * Return true if area is more or less square.
  * This is used when merging to prevent long, thin, areas being created.
  */
-bool CNavArea::IsRoughlySquare( void ) const
-{
+bool CNavArea::IsRoughlySquare(void) const {
 	float aspect = GetSizeX() / GetSizeY();
-
 	const float maxAspect = 3.01;
-	const float minAspect = 1.0f / maxAspect;
-	if (aspect < minAspect || aspect > maxAspect)
-		return false;
-
-	return true;
+	return aspect >= 1.0f / maxAspect && aspect <= maxAspect;
 }
 
 //--------------------------------------------------------------------------------------------------------------
 /**
  * Return true if 'pos' is within 2D extents of area.
  */
-bool CNavArea::IsOverlapping( const Vector &pos, float tolerance ) const
-{
-	if (pos.x + tolerance >= m_nwCorner.x && pos.x - tolerance <= m_seCorner.x &&
-		pos.y + tolerance >= m_nwCorner.y && pos.y - tolerance <= m_seCorner.y)
-		return true;
-
-	return false;
+bool CNavArea::IsOverlapping(const Vector &pos, float tolerance) const {
+	return pos.x + tolerance >= m_nwCorner.x
+			&& pos.x - tolerance <= m_seCorner.x
+			&& pos.y + tolerance >= m_nwCorner.y
+			&& pos.y - tolerance <= m_seCorner.y;
 }
 
 //--------------------------------------------------------------------------------------------------------------
 /**
  * Return true if 'area' overlaps our 2D extents
  */
-bool CNavArea::IsOverlapping( const CNavArea *area ) const
-{
-	if (area->m_nwCorner.x < m_seCorner.x && area->m_seCorner.x > m_nwCorner.x && 
-		area->m_nwCorner.y < m_seCorner.y && area->m_seCorner.y > m_nwCorner.y)
-		return true;
-
-	return false;
+bool CNavArea::IsOverlapping(const CNavArea *area) const {
+	return area->m_nwCorner.x < m_seCorner.x
+			&& area->m_seCorner.x > m_nwCorner.x
+			&& area->m_nwCorner.y < m_seCorner.y
+			&& area->m_seCorner.y > m_nwCorner.y;
 }
 
 
@@ -1998,24 +1958,18 @@ bool CNavArea::IsOverlapping( const Extent &extent ) const
 /**
  * Return true if 'area' overlaps our X extent
  */
-bool CNavArea::IsOverlappingX( const CNavArea *area ) const
-{
-	if (area->m_nwCorner.x < m_seCorner.x && area->m_seCorner.x > m_nwCorner.x)
-		return true;
-
-	return false;
+bool CNavArea::IsOverlappingX(const CNavArea *area) const {
+	return area->m_nwCorner.x < m_seCorner.x
+			&& area->m_seCorner.x > m_nwCorner.x;
 }
 
 //--------------------------------------------------------------------------------------------------------------
 /**
  * Return true if 'area' overlaps our Y extent
  */
-bool CNavArea::IsOverlappingY( const CNavArea *area ) const
-{
-	if (area->m_nwCorner.y < m_seCorner.y && area->m_seCorner.y > m_nwCorner.y)
-		return true;
-
-	return false;
+bool CNavArea::IsOverlappingY(const CNavArea *area) const {
+	return area->m_nwCorner.y < m_seCorner.y
+			&& area->m_seCorner.y > m_nwCorner.y;
 }
 
 
@@ -2029,30 +1983,16 @@ public:
 		m_myZ = me->GetZ( pos );
 	}
 
-	bool operator() ( CNavArea *area )
-	{
+	bool operator()(CNavArea *area) {
+		float theirZ = area->GetZ(m_pos);
 		// skip self
-		if ( area == m_me )
-			return true;
-
+		return area == m_me
 		// check 2D overlap
-		if ( !area->IsOverlapping( m_pos ) )
-			return true;
-
-		float theirZ = area->GetZ( m_pos );
-		if ( theirZ > m_pos.z )
-		{
-			// they are above the point
-			return true;
-		}
-
-		if ( theirZ > m_myZ )
-		{
-			// we are below an area that is beneath the given position
-			return false;
-		}
-
-		return true;
+				|| !area->IsOverlapping(m_pos)
+				// they are above the point
+				|| theirZ > m_pos.z
+				// we are not below an area that is beneath the given position
+				|| theirZ <= m_myZ;
 	}
 
 	const CNavArea *m_me;
@@ -2067,17 +2007,14 @@ public:
 bool CNavArea::Contains( const Vector &pos ) const
 {
 	// check 2D overlap
-	if (!IsOverlapping( pos ))
-		return false;
-
-	// the point overlaps us, check that it is above us, but not above any areas that overlap us
 	float myZ = GetZ( pos );
-
+	if (!IsOverlapping( pos )
+	// the point overlaps us, check that it is above us, but not above any areas that overlap us
 	// if the nav area is above the given position, fail
 	// allow nav area to be as much as a step height above the given position
-	if (myZ - StepHeight > pos.z)
+			|| myZ - StepHeight > pos.z) {
 		return false;
-
+	}
 	Extent areaExtent;
 	GetExtent( &areaExtent );
 
@@ -2105,28 +2042,22 @@ void CNavArea::ComputeNormal( Vector *normal, bool alternate ) const
 		return;
 
 	Vector u, v;
-
+	u.y = 0.0f;
+	v.x = 0.0f;
 	if ( !alternate )
 	{
 		u.x = m_seCorner.x - m_nwCorner.x;
-		u.y = 0.0f;
 		u.z = m_neZ - m_nwCorner.z;
-
-		v.x = 0.0f;
 		v.y = m_seCorner.y - m_nwCorner.y;
 		v.z = m_swZ - m_nwCorner.z;
 	}
 	else
 	{
 		u.x = m_nwCorner.x - m_seCorner.x;
-		u.y = 0.0f;
 		u.z = m_swZ - m_seCorner.z;
-
-		v.x = 0.0f;
 		v.y = m_nwCorner.y - m_seCorner.y;
 		v.z = m_neZ - m_seCorner.z;
 	}
-
 	*normal = CrossProduct( u, v );
 	normal->NormalizeInPlace();
 }
@@ -2173,12 +2104,15 @@ bool CNavArea::IsFlat( void ) const
 		tolerance = nav_coplanar_slope_limit_displacement.GetFloat();
 	}
 
-	if (DotProduct( normal, otherNormal ) > tolerance)
-		return true;
-
-	return false;
+	return DotProduct( normal, otherNormal ) > tolerance;
 }
 
+bool CNavArea::isOnDisplacement() const {
+	return ((!m_node[NORTH_WEST] || !m_node[NORTH_WEST]->IsOnDisplacement())
+			&& (!m_node[NORTH_EAST] || !m_node[NORTH_EAST]->IsOnDisplacement())
+			&& (!m_node[SOUTH_EAST] || !m_node[SOUTH_EAST]->IsOnDisplacement())
+			&& (!m_node[SOUTH_WEST] || !m_node[SOUTH_WEST]->IsOnDisplacement()));
+}
 
 //--------------------------------------------------------------------------------------------------------------
 /**
@@ -2187,42 +2121,19 @@ bool CNavArea::IsFlat( void ) const
 bool CNavArea::IsCoplanar( const CNavArea *area ) const
 {
 	Vector u, v;
-
-	bool isOnDisplacement = ( m_node[ NORTH_WEST ] && m_node[ NORTH_WEST ]->IsOnDisplacement() ) ||
-		( m_node[ NORTH_EAST ] && m_node[ NORTH_EAST ]->IsOnDisplacement() ) ||
-		( m_node[ SOUTH_EAST ] && m_node[ SOUTH_EAST ]->IsOnDisplacement() ) ||
-		( m_node[ SOUTH_WEST ] && m_node[ SOUTH_WEST ]->IsOnDisplacement() );
-
-	if ( !isOnDisplacement && !IsFlat() )
+	if ((isOnDisplacement() && IsFlat())
+			|| (area->isOnDisplacement() && !area->IsFlat())) {
 		return false;
-
-	bool areaIsOnDisplacement = ( area->m_node[ NORTH_WEST ] && area->m_node[ NORTH_WEST ]->IsOnDisplacement() ) ||
-		( area->m_node[ NORTH_EAST ] && area->m_node[ NORTH_EAST ]->IsOnDisplacement() ) ||
-		( area->m_node[ SOUTH_EAST ] && area->m_node[ SOUTH_EAST ]->IsOnDisplacement() ) ||
-		( area->m_node[ SOUTH_WEST ] && area->m_node[ SOUTH_WEST ]->IsOnDisplacement() );
-
-	if ( !areaIsOnDisplacement && !area->IsFlat() )
-		return false;
-
+	}
 	// compute our unit surface normal
 	Vector normal, otherNormal;
-	ComputeNormal( &normal );
-	area->ComputeNormal( &otherNormal );
-
+	ComputeNormal(&normal);
+	area->ComputeNormal(&otherNormal);
 	// can only merge areas that are nearly planar, to ensure areas do not differ from underlying geometry much
-	float tolerance = nav_coplanar_slope_limit.GetFloat();
-	if ( ( m_node[ NORTH_WEST ] && m_node[ NORTH_WEST ]->IsOnDisplacement() ) ||
-		( m_node[ NORTH_EAST ] && m_node[ NORTH_EAST ]->IsOnDisplacement() ) ||
-		( m_node[ SOUTH_EAST ] && m_node[ SOUTH_EAST ]->IsOnDisplacement() ) ||
-		( m_node[ SOUTH_WEST ] && m_node[ SOUTH_WEST ]->IsOnDisplacement() ) )
-	{
-		tolerance = nav_coplanar_slope_limit_displacement.GetFloat();
-	}
-
-	if (DotProduct( normal, otherNormal ) > tolerance)
-		return true;
-
-	return false;
+	return DotProduct(normal, otherNormal)
+			> (isOnDisplacement() ?
+					nav_coplanar_slope_limit_displacement.GetFloat() :
+					nav_coplanar_slope_limit.GetFloat());
 }
 
 //--------------------------------------------------------------------------------------------------------------
@@ -2303,7 +2214,7 @@ float CNavArea::GetDistanceSquaredToPoint( const Vector &pos ) const
 			// position is north-west of area
 			return (m_nwCorner - pos).LengthSqr();
 		}
-		else if (pos.y > m_seCorner.y)
+		if (pos.y > m_seCorner.y)
 		{
 			// position is south-west of area
 			Vector d;
@@ -2312,14 +2223,11 @@ float CNavArea::GetDistanceSquaredToPoint( const Vector &pos ) const
 			d.z = m_swZ - pos.z;
 			return d.LengthSqr();
 		}
-		else
-		{
-			// position is west of area
-			float d = m_nwCorner.x - pos.x;
-			return d * d;
-		}
+		// position is west of area
+		float d = m_nwCorner.x - pos.x;
+		return d * d;
 	}
-	else if (pos.x > m_seCorner.x)
+	if (pos.x > m_seCorner.x)
 	{
 		if (pos.y < m_nwCorner.y)
 		{
@@ -2330,37 +2238,31 @@ float CNavArea::GetDistanceSquaredToPoint( const Vector &pos ) const
 			d.z = m_neZ - pos.z;
 			return d.LengthSqr();
 		}
-		else if (pos.y > m_seCorner.y)
+		if (pos.y > m_seCorner.y)
 		{
 			// position is south-east of area
 			return (m_seCorner - pos).LengthSqr();
 		}
-		else
-		{
-			// position is east of area
-			float d = pos.x - m_seCorner.x;
-			return d * d;
-		}
+		// position is east of area
+		float d = pos.x - m_seCorner.x;
+		return d * d;
 	}
-	else if (pos.y < m_nwCorner.y)
+	if (pos.y < m_nwCorner.y)
 	{
 		// position is north of area
 		float d = m_nwCorner.y - pos.y;
 		return d * d;
 	}
-	else if (pos.y > m_seCorner.y)
+	if (pos.y > m_seCorner.y)
 	{
 		// position is south of area
 		float d = pos.y - m_seCorner.y;
 		return d * d;
 	}
-	else
-	{
-		// position is inside of 2D extent of area - find delta Z
-		float z = GetZ( pos );
-		float d = z - pos.z;
-		return d * d;
-	}
+	// position is inside of 2D extent of area - find delta Z
+	float z = GetZ( pos );
+	float d = z - pos.z;
+	return d * d;
 }
 
 
@@ -2376,7 +2278,6 @@ CNavArea *CNavArea::GetRandomAdjacentArea( NavDirType dir ) const
 	{
 		if (i == which)
 			return m_connect[ dir ][ it ].area;
-
 		++i;
 	}
 
@@ -3151,32 +3052,20 @@ void CNavArea::Draw( void ) const
 		float deltaNorthSouth = fabs( northZ - southZ );
 
 		float stepSize = StepHeight / 2.0f;
-		float t;
 
-		if ( deltaEastWest > deltaNorthSouth )
-		{
+		if (deltaEastWest > deltaNorthSouth) {
 			float inc = stepSize / GetSizeX();
-
-			for( t = 0.0f; t <= 1.0f; t += inc )
-			{
+			for (float t = 0.0f; t <= 1.0f; t += inc) {
 				float x = m_nwCorner.x + t * GetSizeX();
-				
-				NavDrawLine( Vector( x, m_nwCorner.y, GetZ( x, m_nwCorner.y ) ), 
-							 Vector( x, m_seCorner.y, GetZ( x, m_seCorner.y ) ),
-							 color );
+				NavDrawLine(Vector(x, m_nwCorner.y, GetZ(x, m_nwCorner.y)),
+						Vector(x, m_seCorner.y, GetZ(x, m_seCorner.y)), color);
 			}
-		}
-		else
-		{
+		} else {
 			float inc = stepSize / GetSizeY();
-
-			for( t = 0.0f; t <= 1.0f; t += inc )
-			{
+			for (float t = 0.0f; t <= 1.0f; t += inc) {
 				float y = m_nwCorner.y + t * GetSizeY();
-
-				NavDrawLine( Vector( m_nwCorner.x, y, GetZ( m_nwCorner.x, y ) ),
-							 Vector( m_seCorner.x, y, GetZ( m_seCorner.x, y ) ),
-							 color );
+				NavDrawLine(Vector(m_nwCorner.x, y, GetZ(m_nwCorner.x, y)),
+						Vector(m_seCorner.x, y, GetZ(m_seCorner.x, y)), color);
 			}
 		}
 	}
@@ -3191,13 +3080,13 @@ void CNavArea::Draw( void ) const
 		float length = dist/2.5f;
 		Vector start, end;
 
-		start =	m_center + Vector( dist, -length, 0 );
-		end =	m_center + Vector( dist,  length, 0 );
-		NavDrawLine( start, end, color );
+		start = m_center + Vector(dist, -length, 0);
+		end = m_center + Vector(dist, length, 0);
+		NavDrawLine(start, end, color);
 
-		start =	m_center + Vector(   dist, length, 0 );
-		end =	m_center + Vector( length, dist,   0 );
-		NavDrawLine( start, end, color );
+		start = m_center + Vector(dist, length, 0);
+		end = m_center + Vector(length, dist, 0);
+		NavDrawLine(start, end, color);
 
 		start =	m_center + Vector( -dist, -length, 0 );
 		end =	m_center + Vector( -dist,  length, 0 );
@@ -3279,84 +3168,63 @@ void CNavArea::Draw( void ) const
 	}
 }
 
+void drawBorder(const Vector& nw, const Vector& ne, const Vector& sw,
+		const Vector& se, const Color& border, float deltaT) {
+	debugoverlay->AddLineOverlay(nw, ne, border.r(), border.g(), border.b(),
+			true, deltaT);
+	debugoverlay->AddLineOverlay(nw, sw, border.r(), border.g(), border.b(),
+			true, deltaT);
+	debugoverlay->AddLineOverlay(sw, se, border.r(), border.g(), border.b(),
+			true, deltaT);
+	debugoverlay->AddLineOverlay(se, ne, border.r(), border.g(), border.b(),
+			true, deltaT);
+}
 
 //--------------------------------------------------------------------------------------------------------
 /**
  * Draw area as a filled rect of the given color
  */
-void CNavArea::DrawFilled( int r, int g, int b, int a, float deltaT, bool noDepthTest, float margin ) const
-{
-	Vector nw = GetCorner( NORTH_WEST ) + Vector( margin, margin, 0.0f );
-	Vector ne = GetCorner( NORTH_EAST ) + Vector( -margin, margin, 0.0f );
-	Vector sw = GetCorner( SOUTH_WEST ) + Vector( margin, -margin, 0.0f );
-	Vector se = GetCorner( SOUTH_EAST ) + Vector( -margin, -margin, 0.0f );
-
-	if ( a == 0 )
-	{
-		debugoverlay->AddLineOverlay( nw, ne, r, g, b, true, deltaT );
-		debugoverlay->AddLineOverlay( nw, sw, r, g, b, true, deltaT );
-		debugoverlay->AddLineOverlay( sw, se, r, g, b, true, deltaT );
-		debugoverlay->AddLineOverlay( se, ne, r, g, b, true, deltaT );
-	}
-	else
-	{
-		debugoverlay->AddTriangleOverlay( nw, se, ne, r, g, b, a, noDepthTest, deltaT );
-		debugoverlay->AddTriangleOverlay( se, nw, sw, r, g, b, a, noDepthTest, deltaT );
+void CNavArea::DrawFilled(int r, int g, int b, int a, float deltaT,
+		bool noDepthTest, float margin) const {
+	Vector nw = GetCorner(NORTH_WEST) + Vector(margin, margin, 0.0f);
+	Vector ne = GetCorner(NORTH_EAST) + Vector(-margin, margin, 0.0f);
+	Vector sw = GetCorner(SOUTH_WEST) + Vector(margin, -margin, 0.0f);
+	Vector se = GetCorner(SOUTH_EAST) + Vector(-margin, -margin, 0.0f);
+	if (a == 0) {
+		drawBorder(nw, ne, sw, se, Color(r, g, b, a), deltaT);
+	} else {
+		debugoverlay->AddTriangleOverlay(nw, se, ne, r, g, b, a, noDepthTest,
+				deltaT);
+		debugoverlay->AddTriangleOverlay(se, nw, sw, r, g, b, a, noDepthTest,
+				deltaT);
 	}
 }
 
+void drawSelectionSet(const Vector& nw, const Vector& ne, const Vector& sw,
+		const Vector& se, const Color& triangle, const Color& border) {
+	const float deltaT = NDEBUG_PERSIST_TILL_NEXT_SERVER;
+	debugoverlay->AddTriangleOverlay(nw, se, ne, triangle.r(), triangle.g(),
+			triangle.b(), triangle.a(), true, deltaT);
+	debugoverlay->AddTriangleOverlay(se, nw, sw, triangle.r(), triangle.g(),
+			triangle.b(), triangle.a(), true, deltaT);
+	drawBorder(nw, ne, sw, se, border, deltaT);
+}
 
 //--------------------------------------------------------------------------------------------------------
 void CNavArea::DrawSelectedSet( const Vector &shift ) const
 {
-	const float deltaT = NDEBUG_PERSIST_TILL_NEXT_SERVER;
-	int r = s_selectedSetColor.r();
-	int g = s_selectedSetColor.g();
-	int b = s_selectedSetColor.b();
-	int a = s_selectedSetColor.a();
-
-	Vector nw = GetCorner( NORTH_WEST ) + shift;
-	Vector ne = GetCorner( NORTH_EAST ) + shift;
-	Vector sw = GetCorner( SOUTH_WEST ) + shift;
-	Vector se = GetCorner( SOUTH_EAST ) + shift;
-
-	debugoverlay->AddTriangleOverlay( nw, se, ne, r, g, b, a, true, deltaT );
-	debugoverlay->AddTriangleOverlay( se, nw, sw, r, g, b, a, true, deltaT );
-
-	r = s_selectedSetBorderColor.r();
-	g = s_selectedSetBorderColor.g();
-	b = s_selectedSetBorderColor.b();
-	debugoverlay->AddLineOverlay( nw, ne, r, g, b, true, deltaT );
-	debugoverlay->AddLineOverlay( nw, sw, r, g, b, true, deltaT );
-	debugoverlay->AddLineOverlay( sw, se, r, g, b, true, deltaT );
-	debugoverlay->AddLineOverlay( se, ne, r, g, b, true, deltaT );
+	drawSelectionSet(GetCorner(NORTH_WEST) + shift,
+			GetCorner(NORTH_EAST) + shift, GetCorner(SOUTH_WEST) + shift,
+			GetCorner(SOUTH_EAST) + shift, s_selectedSetColor, s_selectedSetBorderColor);
 }
-
 
 //--------------------------------------------------------------------------------------------------------
 void CNavArea::DrawDragSelectionSet( Color &dragSelectionSetColor ) const
 {
-	const float deltaT = NDEBUG_PERSIST_TILL_NEXT_SERVER;
-	int r = dragSelectionSetColor.r();
-	int g = dragSelectionSetColor.g();
-	int b = dragSelectionSetColor.b();
-	int a = dragSelectionSetColor.a();
 
-	Vector nw = GetCorner( NORTH_WEST );
-	Vector ne = GetCorner( NORTH_EAST );
-	Vector sw = GetCorner( SOUTH_WEST );
-	Vector se = GetCorner( SOUTH_EAST );
-
-	debugoverlay->AddTriangleOverlay( nw, se, ne, r, g, b, a, true, deltaT );
-	debugoverlay->AddTriangleOverlay( se, nw, sw, r, g, b, a, true, deltaT );
-
-	r = s_dragSelectionSetBorderColor.r();
-	g = s_dragSelectionSetBorderColor.g();
-	b = s_dragSelectionSetBorderColor.b();
-	debugoverlay->AddLineOverlay( nw, ne, r, g, b, true, deltaT );
-	debugoverlay->AddLineOverlay( nw, sw, r, g, b, true, deltaT );
-	debugoverlay->AddLineOverlay( sw, se, r, g, b, true, deltaT );
-	debugoverlay->AddLineOverlay( se, ne, r, g, b, true, deltaT );
+	drawSelectionSet(GetCorner(NORTH_WEST), GetCorner(NORTH_EAST),
+			GetCorner(SOUTH_WEST), GetCorner(SOUTH_EAST), dragSelectionSetColor,
+			s_dragSelectionSetBorderColor);
 }
 
 
@@ -3900,11 +3768,9 @@ void CNavArea::ComputeHidingSpots( void )
 
 
 	// "jump areas" cannot have hiding spots
-	if ( GetAttributes() & NAV_MESH_JUMP )
-		return;
-
+	if (GetAttributes() & NAV_MESH_JUMP
 	// "don't hide areas" cannot have hiding spots
-	if ( GetAttributes() & NAV_MESH_DONT_HIDE )
+			|| GetAttributes() & NAV_MESH_DONT_HIDE)
 		return;
 
 	int cornerCount[NUM_CORNERS];
@@ -3927,11 +3793,9 @@ void CNavArea::ComputeHidingSpots( void )
 
 			// if connection is only one-way, it's a "jump down" connection (ie: a discontinuity that may mean cover) 
 			// ignore it
-			if (connect.area->IsConnected( this, OppositeDirection( static_cast<NavDirType>( d ) ) ) == false)
-				continue;
-
+			if (!connect.area->IsConnected( this, OppositeDirection( static_cast<NavDirType>( d ) ) )
 			// ignore jump areas
-			if (connect.area->GetAttributes() & NAV_MESH_JUMP)
+					|| (connect.area->GetAttributes() & NAV_MESH_JUMP))
 				continue;
 
 			if (isHoriz)
@@ -4206,10 +4070,7 @@ void CNavArea::AddSpotEncounters( const CNavArea *from, NavDirType fromDir, cons
 			spot = TheHidingSpots[ it ];
 
 			// only look at spots with cover (others are out in the open and easily seen)
-			if (!spot->HasGoodCover())
-				continue;
-
-			if (spot->IsMarked())
+			if (!spot->HasGoodCover() || spot->IsMarked())
 				continue;
 
 			const Vector &spotPos = spot->GetPosition();
@@ -4748,7 +4609,7 @@ static void CommandNavUpdateBlocked( void )
 
 		float end = Plat_FloatTime();
 		float time = (end - start) * 1000.0f;
-		DevMsg( "nav_update_blocked took %2.2f ms\n", time );
+		DevMsg( "plugin_nav_update_blocked took %2.2f ms\n", time );
 /*
  * TODO
 		if (blockedArea) {
@@ -4768,7 +4629,7 @@ static void CommandNavUpdateBlocked( void )
 	}
 
 }
-static ConCommand nav_update_blocked( "nav_update_blocked", CommandNavUpdateBlocked, "Updates the blocked/unblocked status for every nav area.", FCVAR_GAMEDLL );
+static ConCommand nav_update_blocked( "plugin_nav_update_blocked", CommandNavUpdateBlocked, "Updates the blocked/unblocked status for every nav area.", FCVAR_GAMEDLL );
 
 
 //--------------------------------------------------------------------------------------------------------
@@ -4827,7 +4688,7 @@ void CNavArea::MarkAsBlocked( int teamID, edict_t* blocker, bool bGenerateEvent 
 	{
 		if ( bGenerateEvent )
 		{
-			IGameEvent * event = gameeventmanager->CreateEvent( "nav_blocked" );
+			IGameEvent * event = gameeventmanager->CreateEvent( "plugin_nav_blocked" );
 			if ( event )
 			{
 				event->SetInt( "area", m_id );
@@ -4900,7 +4761,7 @@ void CNavArea::UpdateBlockedFromNavBlockers( void )
 	// If we're unblocked, fire a nav_blocked event.
 	if ( wasBlocked != isBlocked )
 	{
-		IGameEvent * event = gameeventmanager->CreateEvent( "nav_blocked" );
+		IGameEvent * event = gameeventmanager->CreateEvent( "plugin_nav_blocked" );
 		if ( event )
 		{
 			event->SetInt( "area", m_id );
@@ -4948,7 +4809,7 @@ void CNavArea::UnblockArea( int teamID )
 
 	if ( wasBlocked )
 	{
-		IGameEvent * event = gameeventmanager->CreateEvent( "nav_blocked" );
+		IGameEvent * event = gameeventmanager->CreateEvent( "plugin_nav_blocked" );
 		if ( event )
 		{
 			event->SetInt( "area", m_id );
@@ -5071,7 +4932,7 @@ void CNavArea::UpdateBlocked( bool force, int teamID )
 	if ( wasBlocked != isBlocked )
 	{
 		VPROF( "CNavArea::UpdateBlocked-Event" );
-		IGameEvent * event = gameeventmanager->CreateEvent( "nav_blocked" );
+		IGameEvent * event = gameeventmanager->CreateEvent( "plugin_nav_blocked" );
 		if ( event )
 		{
 			event->SetInt( "area", m_id );
@@ -5334,10 +5195,10 @@ static void CommandNavCheckFloor( void )
 
 		float end = Plat_FloatTime();
 		float time = (end - start) * 1000.0f;
-		DevMsg( "nav_check_floor took %2.2f ms\n", time );
+		DevMsg( "plugin_nav_check_floor took %2.2f ms\n", time );
 	}
 }
-static ConCommand nav_check_floor( "nav_check_floor", CommandNavCheckFloor, "Updates the blocked/unblocked status for every nav area.", FCVAR_GAMEDLL );
+static ConCommand nav_check_floor( "plugin_nav_check_floor", CommandNavCheckFloor, "Updates the blocked/unblocked status for every nav area.", FCVAR_GAMEDLL );
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -5362,13 +5223,11 @@ bool SelectOverlappingAreas::operator()( CNavArea *area )
 			start.z -= StepHeight;
 			end.z += HalfHumanHeight;
 
-			if ( TheNavMesh->FindNavAreaOrLadderAlongRay( start, end, &overlappingArea, &overlappingLadder, area ) )
-			{
-				if ( overlappingArea )
-				{
-					TheNavMesh->AddToSelectedSet( overlappingArea );
-					TheNavMesh->AddToSelectedSet( area );
-				}
+			if (TheNavMesh->FindNavAreaOrLadderAlongRay(start, end,
+					&overlappingArea, &overlappingLadder, area)
+					&& overlappingArea) {
+				TheNavMesh->AddToSelectedSet(overlappingArea);
+				TheNavMesh->AddToSelectedSet(area);
 			}
 
 			start.y += GenerationStepSize;
@@ -5391,7 +5250,7 @@ static void CommandNavSelectOverlapping( void )
 
 	Msg( "%d overlapping areas selected\n", TheNavMesh->GetSelecteSetSize() );
 }
-static ConCommand nav_select_overlapping( "nav_select_overlapping", CommandNavSelectOverlapping, "Selects nav areas that are overlapping others.", FCVAR_GAMEDLL );
+static ConCommand nav_select_overlapping( "plugin_nav_select_overlapping", CommandNavSelectOverlapping, "Selects nav areas that are overlapping others.", FCVAR_GAMEDLL );
 
 
 //--------------------------------------------------------------------------------------------------------
