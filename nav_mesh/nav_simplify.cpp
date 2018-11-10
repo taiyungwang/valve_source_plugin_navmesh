@@ -13,6 +13,7 @@
 // NOTE: This has to be the last file included!
 #include "tier0/memdbgon.h"
 
+
 // the global singleton interface
 extern CNavMesh *TheNavMesh;
 extern ConVar nav_snap_to_grid;
@@ -36,11 +37,7 @@ static bool ReduceToComponentAreas( CNavArea *area, bool addToSelectedSet )
 	float sizeX = area->GetSizeX();
 	float sizeY = area->GetSizeY();
 
-	CNavArea *first = NULL;
-	CNavArea *second = NULL;
-	CNavArea *third = NULL;
-	CNavArea *fourth = NULL;
-
+	CNavArea *areas[4];
 	bool didSplit = false;
 
 	if ( sizeX > GenerationStepSize )
@@ -50,7 +47,7 @@ static bool ReduceToComponentAreas( CNavArea *area, bool addToSelectedSet )
 			splitEdge += GenerationStepSize;
 		splitAlongX = false;
 
-		didSplit = area->SplitEdit( splitAlongX, splitEdge, &first, &second );
+		didSplit = area->SplitEdit( splitAlongX, splitEdge, &areas[0], &areas[1] );
 	}
 
 	if ( sizeY > GenerationStepSize )
@@ -62,12 +59,12 @@ static bool ReduceToComponentAreas( CNavArea *area, bool addToSelectedSet )
 
 		if ( didSplit )
 		{
-			didSplit = first->SplitEdit( splitAlongX, splitEdge, &third, &fourth );
-			didSplit = second->SplitEdit( splitAlongX, splitEdge, &first, &second );
+			didSplit = areas[0]->SplitEdit( splitAlongX, splitEdge, &areas[2], &areas[3] );
+			didSplit = areas[1]->SplitEdit( splitAlongX, splitEdge, &areas[0], &areas[1] );
 		}
 		else
 		{
-			didSplit = area->SplitEdit( splitAlongX, splitEdge, &first, &second );
+			didSplit = area->SplitEdit( splitAlongX, splitEdge, &areas[0], &areas[1] );
 		}
 	}
 
@@ -76,17 +73,13 @@ static bool ReduceToComponentAreas( CNavArea *area, bool addToSelectedSet )
 
 	if ( addToSelectedSet )
 	{
-		TheNavMesh->AddToSelectedSet( first );
-		TheNavMesh->AddToSelectedSet( second );
-		TheNavMesh->AddToSelectedSet( third );
-		TheNavMesh->AddToSelectedSet( fourth );
+		for (int i = 0; i < 4; i++) {
+			TheNavMesh->AddToSelectedSet( areas[i] );
+		}
 	}
-
-	ReduceToComponentAreas( first, addToSelectedSet );
-	ReduceToComponentAreas( second, addToSelectedSet );
-	ReduceToComponentAreas( third, addToSelectedSet );
-	ReduceToComponentAreas( fourth, addToSelectedSet );
-
+	for (int i = 0; i < 4; i++) {
+		ReduceToComponentAreas(areas[i], addToSelectedSet);
+	}
 	return true;
 }
 

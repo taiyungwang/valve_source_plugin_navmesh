@@ -14,11 +14,13 @@ class SendTable;
 class ServerClass;
 
 /**
- * Defines an Entity Class. It caches any previously added to the map.
+ * Defines an Entity Class. It caches any previously added class
+ * variable to an internal map.
  */
 class EntityClass {
 public:
-	EntityClass(const ServerClass* pClass): pClass(pClass) {
+	EntityClass(const ServerClass* pClass) :
+			pClass(pClass) {
 		SetDefLessFunc(vars);
 
 	}
@@ -33,7 +35,5 @@ private:
 
 	CUtlMap<const char*, EntityVar> vars;
 };
-
-
 
 #endif /* UTILS_VALVE_NAVMESH_UTIL_ENTITYCLASS_H_ */

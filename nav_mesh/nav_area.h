@@ -157,10 +157,10 @@ public:
 		EXPOSED				= 0x08							// spot in the open, usually on a ledge or cliff
 	};
 
-	bool HasGoodCover( void ) const			{ return (m_flags & IN_COVER) ? true : false; }	// return true if hiding spot in in cover
-	bool IsGoodSniperSpot( void ) const		{ return (m_flags & GOOD_SNIPER_SPOT) ? true : false; }
-	bool IsIdealSniperSpot( void ) const	{ return (m_flags & IDEAL_SNIPER_SPOT) ? true : false; }
-	bool IsExposed( void ) const			{ return (m_flags & EXPOSED) ? true : false; }	
+	bool HasGoodCover( void ) const			{ return (m_flags & IN_COVER); }	// return true if hiding spot in in cover
+	bool IsGoodSniperSpot( void ) const		{ return (m_flags & GOOD_SNIPER_SPOT); }
+	bool IsIdealSniperSpot( void ) const	{ return (m_flags & IDEAL_SNIPER_SPOT); }
+	bool IsExposed( void ) const			{ return (m_flags & EXPOSED); }
 
 	int GetFlags( void ) const		{ return m_flags; }
 
@@ -173,7 +173,7 @@ public:
 	const CNavArea *GetArea( void ) const		{ return m_area; }	// return nav area this hiding spot is within
 
 	void Mark( void )							{ m_marker = m_masterMarker; }
-	bool IsMarked( void ) const					{ return (m_marker == m_masterMarker) ? true : false; }
+	bool IsMarked( void ) const					{ return (m_marker == m_masterMarker); }
 	static void ChangeMasterMarker( void )		{ ++m_masterMarker; }
 
 
@@ -288,7 +288,11 @@ public:
 	CNavArea( unsigned int place );
 	virtual ~CNavArea();
 	
-	virtual void OnServerActivate( void );						// (EXTEND) invoked when map is initially loaded
+	virtual void OnServerActivate( void )						// (EXTEND) invoked when map is initially loaded
+	{
+		OnRoundRestart();
+	}
+
 	virtual void OnRoundRestart( void );						// (EXTEND) invoked for each area when the round restarts
 	virtual void OnRoundRestartPreEntity( void ) { }			// invoked for each area when the round restarts, but before entities are deleted and recreated
 	virtual void OnEnter( edict_t *who, CNavArea *areaJustLeft ) { }	// invoked when player enters this area
@@ -325,7 +329,7 @@ public:
 
 	void SetAttributes( int bits )			{ m_attributeFlags = bits; }
 	int GetAttributes( void ) const			{ return m_attributeFlags; }
-	bool HasAttributes( int bits ) const	{ return ( m_attributeFlags & bits ) ? true : false; }
+	bool HasAttributes( int bits ) const	{ return ( m_attributeFlags & bits ); }
 	void RemoveAttributes( int bits )		{ m_attributeFlags &= ( ~bits ); }
 
 	void SetPlace( Place place )		{ m_place = place; }	// set place descriptor
@@ -353,8 +357,23 @@ public:
 	void ClearAllNavCostEntities( void );							// clear set of func_nav_cost entities that affect this area
 	void AddFuncNavCostEntity( CFuncNavCost *cost );				// add the given func_nav_cost entity to the cost of this area
 	float ComputeFuncNavCost( edict_t *who ) const;	// return the cost multiplier of this area's func_nav_cost entities for the given actor
+
+	template<typename T>
+	bool HasFunc(void) const;
+
 	bool HasFuncNavAvoid( void ) const;
+
 	bool HasFuncNavPrefer( void ) const;
+
+	void connectNodes(CNavNode* startNode, CNavNode* endNode, NavDirType thisNode,
+			NavDirType adjNode);
+
+	void connectToNodeWithoutArea(NavCornerType startNode, NavCornerType endNode, NavDirType thisNode,
+			NavDirType adjNode);
+
+	bool merge(CNavMesh* navMesh, NavDirType thisDir,
+			NavCornerType corner1, NavCornerType cornerOpp1, NavCornerType corner2,
+			NavCornerType cornerOpp2);
 
 	void CheckWaterLevel( void );
 	bool IsUnderwater( void ) const		{ return m_isUnderwater; }
@@ -407,7 +426,7 @@ public:
 	CFuncElevator *GetElevator( void ) const												{ Assert( !( m_attributeFlags & NAV_MESH_HAS_ELEVATOR ) == (m_elevator == NULL) ); return ( m_attributeFlags & NAV_MESH_HAS_ELEVATOR ) ? m_elevator : NULL; }
 	const NavConnectVector &GetElevatorAreas( void ) const									{ return m_elevatorAreas; }	// return collection of areas reachable via elevator from this area
 
-	void ComputePortal( const CNavArea *to, NavDirType dir, Vector *center, float *halfWidth ) const;		// compute portal to adjacent area
+	float ComputePortal( const CNavArea *to, NavDirType dir, Vector *center) const;		// compute portal to adjacent area
 	NavDirType ComputeLargestPortal( const CNavArea *to, Vector *center, float *halfWidth ) const;		// compute largest portal to adjacent area, returning direction
 	void ComputeClosestPointInPortal( const CNavArea *to, NavDirType dir, const Vector &fromPos, Vector *closePos ) const; // compute closest point within the "portal" between to adjacent areas
 	NavDirType ComputeDirection( Vector *point ) const;			// return direction from this area to the given point
@@ -455,7 +474,7 @@ public:
 	//- A* pathfinding algorithm ------------------------------------------------------------------------
 	static void MakeNewMarker( void )	{ ++m_masterMarker; if (m_masterMarker == 0) m_masterMarker = 1; }
 	void Mark( void )					{ m_marker = m_masterMarker; }
-	BOOL IsMarked( void ) const			{ return (m_marker == m_masterMarker) ? true : false; }
+	BOOL IsMarked( void ) const			{ return (m_marker == m_masterMarker); }
 	
 	void SetParent( CNavArea *parent, NavTraverseType how = NUM_TRAVERSE_TYPES )	{ m_parent = parent; m_parentHow = how; }
 	CNavArea *GetParent( void ) const	{ return m_parent; }
@@ -501,8 +520,13 @@ public:
 	void Shift( const Vector &shift );							// shift the nav area
 
 	//- ladders -----------------------------------------------------------------------------------------
-	void AddLadderUp( CNavLadder *ladder );
-	void AddLadderDown( CNavLadder *ladder );
+	void AddLadderUp(CNavLadder *ladder) {
+		addLadder(ladder, CNavLadder::LADDER_UP);
+	}
+
+	void AddLadderDown( CNavLadder *ladder ) {
+		addLadder(ladder, CNavLadder::LADDER_DOWN);
+	}
 
 	//- generation and analysis -------------------------------------------------------------------------
 	virtual void ComputeHidingSpots( void );					// analyze local area neighborhood to find "hiding spots" in this area - for map learning
@@ -545,15 +569,15 @@ public:
 		}
 	};
 
+	template<typename VisCheck>
+	bool checkVisibility( const CNavArea *viewedArea, VisCheck& check) const;
+
 	virtual bool IsEntirelyVisible( const Vector &eye, const edict_t *ignore = NULL ) const;				// return true if entire area is visible from given eyepoint (CPU intensive)
 	virtual bool IsPartiallyVisible( const Vector &eye, const edict_t *ignore = NULL ) const;				// return true if any portion of the area is visible from given eyepoint (CPU intensive)
 
-	virtual bool IsPotentiallyVisible( const CNavArea *area ) const;		// return true if given area is potentially visible from somewhere in this area (very fast)
-	virtual bool IsPotentiallyVisibleToTeam( int team ) const;				// return true if any portion of this area is visible to anyone on the given team (very fast)
-
-	virtual bool IsCompletelyVisible( const CNavArea *area ) const;			// return true if given area is completely visible from somewhere in this area (very fast)
-	virtual bool IsCompletelyVisibleToTeam( int team ) const;				// return true if given area is completely visible from somewhere in this area by someone on the team (very fast)
-
+	static bool potentiallyVisible(const AreaBindInfo& info) {
+		return info.attributes != NOT_VISIBLE;
+	}
 
 	static bool notVisible(const AreaBindInfo& info) {
 		return info.attributes == NOT_VISIBLE;
@@ -562,6 +586,22 @@ public:
 	static bool completelyVisible(const AreaBindInfo& info) {
 		return (info.attributes & COMPLETELY_VISIBLE) == 0;
 	}
+
+	virtual bool IsPotentiallyVisible( const CNavArea *area ) const {
+		return checkVisibility(area, potentiallyVisible);// return true if given area is potentially visible from somewhere in this area (very fast)
+	}
+	// return true if any portion of this area is visible to anyone on the given team (very fast)
+	virtual bool IsPotentiallyVisibleToTeam( int team, const CNavArea* from ) const;
+
+	// return true if given area is completely visible from somewhere in this area (very fast)
+	virtual bool IsCompletelyVisible( const CNavArea *area ) const {
+		return checkVisibility(area, completelyVisible);
+	}
+
+	template<typename VisCheck>
+	bool checkTeamVisibility(int team, const CNavArea* from, VisCheck visCheck) const;
+
+	virtual bool IsCompletelyVisibleToTeam( int team, const CNavArea* from ) const;				// return true if given area is completely visible from somewhere in this area by someone on the team (very fast)
 
 	template<typename Functor1, typename Functor2>
 	bool checkAreaVisibility(Functor1& func1, Functor2& func2) {
@@ -652,6 +692,15 @@ private:
 	CountdownTimer m_blockedTimer;								// Throttle checks on our blocked state while blocked
 	void UpdateBlockedFromNavBlockers( void );					// checks if nav blockers are still blocking the area
 
+	void addLadder(CNavLadder* ladder, CNavLadder::LadderDirectionType dir);
+
+	bool connectNewArea(CNavArea *other, NavDirType dir, const Vector& nw,
+			const Vector& ne, const Vector& se, const Vector& sw);
+
+	void build();
+
+	void buildFromNodes();
+
 	bool m_isUnderwater;										// true if the center of the area is underwater
 
 	bool m_isBattlefront;
@@ -736,6 +785,10 @@ private:
 
 	const CAreaBindInfoArray &ComputeVisibilityDelta( const CNavArea *other ) const;	// return a list of the delta between our visibility list and the given adjacent area
 
+	template<typename IsFound, typename UpdateDelta>
+	void ComputeVisibilityDelta(const IsFound& isFound, const UpdateDelta& func,
+			CAreaBindInfoArray& delta, const CNavArea *other) const;
+
 	uint32 m_nVisTestCounter;
 	static uint32 s_nCurrVisTestCounter;
 
@@ -795,24 +848,22 @@ inline bool CNavArea::IsDegenerate( void ) const
 }
 
 //--------------------------------------------------------------------------------------------------------------
-inline CNavArea *CNavArea::GetAdjacentArea( NavDirType dir, int i ) const
-{
-	if ( ( i < 0 ) || ( i >= m_connect[dir].Count() ) )
-		return NULL;
-	return m_connect[dir][i].area;
+inline CNavArea *CNavArea::GetAdjacentArea(NavDirType dir, int i) const {
+	return i < 0 || i >= m_connect[dir].Count() ?
+			nullptr : m_connect[dir][i].area;
 }
 
 //--------------------------------------------------------------------------------------------------------------
 inline bool CNavArea::IsOpen( void ) const
 {
-	return (m_openMarker == m_masterMarker) ? true : false;
+	return m_openMarker == m_masterMarker;
 }
 
 //--------------------------------------------------------------------------------------------------------------
 inline bool CNavArea::IsOpenListEmpty( void )
 {
 	Assert( (m_openList && m_openList->m_prevOpen == NULL) || m_openList == NULL );
-	return (m_openList) ? false : true;
+	return m_openList == nullptr;
 }
 
 //--------------------------------------------------------------------------------------------------------------
@@ -842,10 +893,7 @@ inline CNavArea *CNavArea::PopOpenList( void )
 //--------------------------------------------------------------------------------------------------------------
 inline bool CNavArea::IsClosed( void ) const
 {
-	if (IsMarked() && !IsOpen())
-		return true;
-
-	return false;
+	return IsMarked() && !IsOpen();
 }
 
 //--------------------------------------------------------------------------------------------------------------

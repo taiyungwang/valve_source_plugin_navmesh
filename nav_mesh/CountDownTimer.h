@@ -2,7 +2,6 @@
  * CountDownTimer.h
  *
  *  Created on: Apr 15, 2017
- *      Author: ttwang
  */
 
 #ifndef UTILS_VALVE_NAVMESH_COUNTDOWNTIMER_H_

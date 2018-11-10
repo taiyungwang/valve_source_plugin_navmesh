@@ -7,6 +7,7 @@
 #ifndef UTILS_VALVE_NAVMESH_UTIL_ENTITYVAR_H_
 #define UTILS_VALVE_NAVMESH_UTIL_ENTITYVAR_H_
 
+class CBaseEntity;
 struct edict_t;
 
 /**
@@ -15,27 +16,45 @@ struct edict_t;
 class EntityVar {
 public:
 
+	EntityVar() {
+		offset = 0;
+	}
+
 	void setOffset(int offset) {
 		this->offset = offset;
 	}
 
 	template<typename T>
-	T getVar(edict_t* ent) const {
-		T out;
-		getVarPtr(&out, ent);
-		return out;
+	T* getPtr(edict_t *ent) {
+		return getVarPtr<T>(getBaseEntity(ent));
 	}
 
 	template<typename T>
-	void getVarPtr(T* out, edict_t* ent) const {
-		*out =
-				*reinterpret_cast<T*>(reinterpret_cast<void *>(reinterpret_cast<char *>(ent)
-						+ offset));
+	T get(edict_t* ent) const {
+		T *out = getVarPtr<T>(getBaseEntity(ent));
+		if (out == nullptr) {
+			throwException(ent);
+		}
+		return *out;
 	}
+
+	edict_t* getEntity(edict_t* ent) const;
 
 private:
 
 	int offset;
+
+	CBaseEntity* getBaseEntity(edict_t* ent) const;
+
+	template<typename T>
+	T *getVarPtr(CBaseEntity* ent) const {
+		return ent == nullptr ?
+				nullptr :
+				reinterpret_cast<T*>(reinterpret_cast<char *>(ent) + offset);
+	}
+
+	void throwException(edict_t* ent) const;
+
 };
 
 #endif /* UTILS_VALVE_NAVMESH_UTIL_ENTITYVAR_H_ */

@@ -43,7 +43,7 @@ Color NavColors[] = {
 
 		// Hiding spot colors
 		Color(255, 0, 0),			// NavIdealSniperColor
-		Color(255, 0, 255),		// NavGoodSniperColor
+		Color(255, 255, 0),		// NavGoodSniperColor
 		Color(0, 255, 0),			// NavGoodCoverColor
 		Color(255, 0, 255),		// NavExposedColor
 		Color(255, 100, 0),		// NavApproachPointColor
@@ -98,9 +98,9 @@ void NavDrawFilledTriangle(const Vector& point1, const Vector& point2,
 		const Vector& point3, NavEditColor navColor, bool dark) {
 	Color color = NavColors[navColor];
 	if (dark) {
-		color[0] = color[0] / 2;
-		color[1] = color[1] / 2;
-		color[2] = color[2] / 2;
+		for (int i = 0; i < 3; i++) {
+			color[i] /= 2;
+		}
 	}
 	debugoverlay->AddTriangleOverlay(point1, point2, point3, color[0], color[1],
 			color[2], 255, true, NDEBUG_PERSIST_TILL_NEXT_SERVER);
@@ -110,38 +110,30 @@ void HorzArrow(const Vector &startPos, const Vector &endPos, float width, int r,
 		int g, int b, int a, bool noDepthTest, float flDuration) {
 	Vector lineDir = (endPos - startPos);
 	VectorNormalize(lineDir);
-	Vector upVec = Vector(0, 0, 1);
 	Vector sideDir;
 	float radius = width / 2.0;
 
-	CrossProduct(lineDir, upVec, sideDir);
+	CrossProduct(lineDir, Vector(0, 0, 1.0f), sideDir);
 
-	Vector p1 = startPos - sideDir * radius;
-	Vector p2 = endPos - lineDir * width - sideDir * radius;
-	Vector p3 = endPos - lineDir * width - sideDir * width;
-	Vector p4 = endPos;
-	Vector p5 = endPos - lineDir * width + sideDir * width;
-	Vector p6 = endPos - lineDir * width + sideDir * radius;
-	Vector p7 = startPos + sideDir * radius;
-
+	const unsigned int POINTS = 7;
+	Vector p[POINTS] = {startPos - sideDir * radius, endPos - lineDir * width
+			- sideDir * radius, endPos - lineDir * width - sideDir * width,
+			endPos, endPos - lineDir * width + sideDir * width, endPos
+					- lineDir * width + sideDir * radius, startPos
+					+ sideDir * radius };
 	// Outline the arrow
-	debugoverlay->AddLineOverlay(p1, p2, r, g, b, noDepthTest, flDuration);
-	debugoverlay->AddLineOverlay(p2, p3, r, g, b, noDepthTest, flDuration);
-	debugoverlay->AddLineOverlay(p3, p4, r, g, b, noDepthTest, flDuration);
-	debugoverlay->AddLineOverlay(p4, p5, r, g, b, noDepthTest, flDuration);
-	debugoverlay->AddLineOverlay(p5, p6, r, g, b, noDepthTest, flDuration);
-	debugoverlay->AddLineOverlay(p6, p7, r, g, b, noDepthTest, flDuration);
-
+	for (unsigned int i = 0; i < POINTS + 1; i++) {
+		debugoverlay->AddLineOverlay(p[i], p[i + 1], r, g, b, noDepthTest, flDuration);
+	}
 	if (a > 0) {
 		// Fill us in with triangles
-		debugoverlay->AddTriangleOverlay(p5, p4, p3, r, g, b, a, noDepthTest, flDuration); // Tip
-		debugoverlay->AddTriangleOverlay(p1, p7, p6, r, g, b, a, noDepthTest, flDuration); // Shaft
-		debugoverlay->AddTriangleOverlay(p6, p2, p1, r, g, b, a, noDepthTest, flDuration);
-
+		debugoverlay->AddTriangleOverlay(p[4], p[3], p[2], r, g, b, a, noDepthTest, flDuration); // Tip
+		debugoverlay->AddTriangleOverlay(p[0], p[6], p[5], r, g, b, a, noDepthTest, flDuration); // Shaft
+		debugoverlay->AddTriangleOverlay(p[5], p[2], p[0], r, g, b, a, noDepthTest, flDuration);
 		// And backfaces
-		debugoverlay->AddTriangleOverlay(p3, p4, p5, r, g, b, a, noDepthTest, flDuration); // Tip
-		debugoverlay->AddTriangleOverlay(p6, p7, p1, r, g, b, a, noDepthTest, flDuration); // Shaft
-		debugoverlay->AddTriangleOverlay(p1, p2, p6, r, g, b, a, noDepthTest, flDuration);
+		debugoverlay->AddTriangleOverlay(p[2], p[3], p[4], r, g, b, a, noDepthTest, flDuration); // Tip
+		debugoverlay->AddTriangleOverlay(p[5], p[6], p[0], r, g, b, a, noDepthTest, flDuration); // Shaft
+		debugoverlay->AddTriangleOverlay(p[0], p[1], p[5], r, g, b, a, noDepthTest, flDuration);
 	}
 }
 //--------------------------------------------------------------------------------------------------------------

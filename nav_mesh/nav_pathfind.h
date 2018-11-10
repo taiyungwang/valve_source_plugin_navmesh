@@ -12,9 +12,10 @@
 #ifndef _NAV_PATHFIND_H_
 #define _NAV_PATHFIND_H_
 
+#include "nav_area.h"
 #include "tier0/vprof.h"
 #include "mathlib/ssemath.h"
-#include "nav_area.h"
+
 
 #ifdef STAGING_ONLY
 extern int g_DebugPathfindCounter;
@@ -41,7 +42,12 @@ enum RouteType
 class ShortestPathCost
 {
 public:
-	float operator() ( CNavArea *area, CNavArea *fromArea, const CNavLadder *ladder, const CFuncElevator *elevator, float length )
+	ShortestPathCost(int team): team(team) {
+	}
+
+	float operator()(CNavArea *area, CNavArea *fromArea,
+			const CNavLadder *ladder, const CFuncElevator *elevator,
+			float length) const
 	{
 		if ( fromArea == NULL )
 		{
@@ -67,6 +73,9 @@ public:
 			}
 
 			float cost = dist + fromArea->GetCostSoFar();
+			if (team > 0) {
+				cost += area->GetDanger(team);
+			}
 
 			// if this is a "crouch" area, add penalty
 			if ( area->GetAttributes() & NAV_MESH_CROUCH )
@@ -85,6 +94,8 @@ public:
 			return cost;
 		}
 	}
+private:
+	int team;
 };
 
 //--------------------------------------------------------------------------------------------------------------
@@ -101,8 +112,10 @@ public:
  */
 #define IGNORE_NAV_BLOCKERS true
 template< typename CostFunctor >
-bool NavAreaBuildPath( CNavArea *startArea, CNavArea *goalArea, const Vector *goalPos, CostFunctor &costFunc, CNavArea **closestArea = NULL, float maxPathLength = 0.0f, int teamID = TEAM_ANY, bool ignoreNavBlockers = false )
-{
+bool NavAreaBuildPath(CNavArea *startArea, CNavArea *goalArea,
+		const Vector *goalPos, const CostFunctor &costFunc, CNavArea **closestArea =
+				NULL, float maxPathLength = 0.0f, int teamID = TEAM_ANY,
+		bool ignoreNavBlockers = false) {
 	VPROF_BUDGET( "NavAreaBuildPath", "NextBotSpiky" );
 
 	if ( closestArea )
@@ -221,16 +234,14 @@ bool NavAreaBuildPath( CNavArea *startArea, CNavArea *goalArea, const Vector *go
 						searchWhere = SEARCH_LADDERS;
 
 						ladderList = area->GetLadders( CNavLadder::LADDER_UP );
-						searchIndex = 0;
 						ladderTopDir = AHEAD;
 					}
 					else
 					{
 						// start next direction
 						floorList = area->GetAdjacentAreas( (NavDirType)dir );
-						searchIndex = 0;
 					}
-
+					searchIndex = 0;
 					continue;
 				}
 
@@ -253,7 +264,6 @@ bool NavAreaBuildPath( CNavArea *startArea, CNavArea *goalArea, const Vector *go
 					{
 						// checked both ladder directions - check elevators next
 						searchWhere = SEARCH_ELEVATORS;
-						searchIndex = 0;
 						ladder = NULL;
 					}
 					else
@@ -261,8 +271,8 @@ bool NavAreaBuildPath( CNavArea *startArea, CNavArea *goalArea, const Vector *go
 						// check down ladders
 						ladderUp = false;
 						ladderList = area->GetLadders( CNavLadder::LADDER_DOWN );
-						searchIndex = 0;
 					}
+					searchIndex = 0;
 					continue;
 				}
 
@@ -320,15 +330,8 @@ bool NavAreaBuildPath( CNavArea *startArea, CNavArea *goalArea, const Vector *go
 				}
 
 				newArea = elevatorAreas[ searchIndex++ ].area;
-				if ( newArea->GetCenter().z > area->GetCenter().z )
-				{
-					how = GO_ELEVATOR_UP;
-				}
-				else
-				{
-					how = GO_ELEVATOR_DOWN;
-				}
-
+				how = newArea->GetCenter().z > area->GetCenter().z ?
+						GO_ELEVATOR_UP : GO_ELEVATOR_DOWN;
 				length = -1.0f;
 			}
 
@@ -360,27 +363,22 @@ bool NavAreaBuildPath( CNavArea *startArea, CNavArea *goalArea, const Vector *go
 			// Make sure that any jump to a new area incurs some pathfinsing
 			// cost, to avoid us spinning our wheels over insignificant cost
 			// benefit, floating point precision bug, or busted cost functor.
-			float minNewCostSoFar = area->GetCostSoFar() * 1.00001f + 0.00001f;
-			newCostSoFar = Max( newCostSoFar, minNewCostSoFar );
+			newCostSoFar = Max( newCostSoFar, area->GetCostSoFar() * 1.00001f + 0.00001f );
 				
 			// stop if path length limit reached
 			if ( bHaveMaxPathLength )
 			{
 				// keep track of path length so far
-				float deltaLength = ( newArea->GetCenter() - area->GetCenter() ).Length();
-				float newLengthSoFar = area->GetPathLengthSoFar() + deltaLength;
+				float newLengthSoFar = area->GetPathLengthSoFar()
+						+ ( newArea->GetCenter() - area->GetCenter() ).Length();
 				if ( newLengthSoFar > maxPathLength )
 					continue;
 				
 				newArea->SetPathLengthSoFar( newLengthSoFar );
 			}
-
-			if ( ( newArea->IsOpen() || newArea->IsClosed() ) && newArea->GetCostSoFar() <= newCostSoFar )
-			{
-				// this is a worse path - skip it
-				continue;
-			}
-			else
+			// this is a not worse path
+			if (!((newArea->IsOpen() || newArea->IsClosed())
+					&& newArea->GetCostSoFar() <= newCostSoFar))
 			{
 				// compute estimate of distance left to go
 				float distSq = ( newArea->GetCenter() - actualGoalPos ).LengthSqr();
@@ -482,8 +480,8 @@ inline void AddAreaToOpenList( CNavArea *area, CNavArea *parent, const Vector &s
 			if ((closePos - startPos).AsVector2D().IsLengthLessThan( maxRange ))
 			{
 				// compute approximate distance along path to limit travel range, too
-				float distAlong = parent->GetCostSoFar();
-				distAlong += (area->GetCenter() - parent->GetCenter()).Length();
+				float distAlong = parent->GetCostSoFar()
+						+ (area->GetCenter() - parent->GetCenter()).Length();
 				area->SetCostSoFar( distAlong );
 
 				// allow for some fudge due to large size areas
@@ -559,9 +557,7 @@ void SearchSurroundingAreas( CNavArea *startArea, const Vector &startPos, Functo
 
 					FOR_EACH_VEC( (*list), it )
 					{
-						NavConnect connect = (*list)[ it ];				
-						
-						AddAreaToOpenList( connect.area, area, startPos, maxRange );
+						AddAreaToOpenList( (*list)[ it ].area, area, startPos, maxRange );
 					}
 				}
 			}
@@ -590,9 +586,8 @@ void SearchSurroundingAreas( CNavArea *startArea, const Vector &startPos, Functo
 			{
 				FOR_EACH_VEC( (*ladderList), it )
 				{
-					const CNavLadder *ladder = (*ladderList)[ it ].ladder;
-
-					AddAreaToOpenList( ladder->m_bottomArea, area, startPos, maxRange );
+					AddAreaToOpenList( (*ladderList)[ it ].ladder->m_bottomArea, area,
+							startPos, maxRange );
 				}
 			}
 
@@ -601,8 +596,7 @@ void SearchSurroundingAreas( CNavArea *startArea, const Vector &startPos, Functo
 				const NavConnectVector &elevatorList = area->GetElevatorAreas();
 				FOR_EACH_VEC( elevatorList, it )
 				{
-					CNavArea *elevatorArea = elevatorList[ it ].area;
-					AddAreaToOpenList( elevatorArea, area, startPos, maxRange );
+					AddAreaToOpenList( elevatorList[ it ].area, area, startPos, maxRange );
 				}
 			}
 		}
@@ -668,17 +662,8 @@ public:
 			area->SetParent( priorArea );
 
 			// compute approximate travel distance from start area of search
-			if ( priorArea )
-			{
-				float distAlong = priorArea->GetCostSoFar();
-				distAlong += ( area->GetCenter() - priorArea->GetCenter() ).Length();
-				area->SetCostSoFar( distAlong );
-			}
-			else
-			{
-				area->SetCostSoFar( 0.0f );
-			}
-
+			area->SetCostSoFar( priorArea ? (priorArea->GetCostSoFar()
+					+ ( area->GetCenter() - priorArea->GetCenter() ).Length()) : 0.0f );
 			// adding an area to the open list also marks it
 			area->AddToOpenList();
 		}
@@ -780,21 +765,14 @@ inline void CollectSurroundingAreas( CUtlVector< CNavArea * > *nearbyAreaVector,
 				for( int i=0; i<count; ++i )
 				{
 					CNavArea *adjArea = area->GetAdjacentArea( (NavDirType)dir, i );
-
-					if ( adjArea->IsBlocked( TEAM_ANY ) )
-					{
-						continue;
-					}
-
-					if ( !adjArea->IsMarked() )
+					if ( !adjArea->IsBlocked( TEAM_ANY ) && !adjArea->IsMarked() )
 					{
 						adjArea->SetTotalCost( 0.0f );
 						adjArea->SetParent( area );
 
 						// compute approximate travel distance from start area of search
-						float distAlong = area->GetCostSoFar();
-						distAlong += ( adjArea->GetCenter() - area->GetCenter() ).Length();
-						adjArea->SetCostSoFar( distAlong );
+						adjArea->SetCostSoFar( area->GetCostSoFar()
+								+ ( adjArea->GetCenter() - area->GetCenter() ).Length() );
 						adjArea->AddToOpenList();
 					}
 				}
@@ -814,10 +792,9 @@ class FarAwayFunctor
 public:
 	float operator() ( CNavArea *area, CNavArea *fromArea, const CNavLadder *ladder )
 	{
-		if (area == fromArea)
-			return 9999999.9f;
-
-		return 1.0f/(fromArea->GetCenter() - area->GetCenter()).Length();
+		return area == fromArea ?
+				9999999.9f :
+				1.0f / (fromArea->GetCenter() - area->GetCenter()).Length();
 	}
 };
 

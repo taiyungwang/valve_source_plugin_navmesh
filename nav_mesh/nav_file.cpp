@@ -749,9 +749,8 @@ NavErrorType CNavArea::PostLoad( void )
 		if (e->from.area && e->to.area)
 		{
 			// compute path
-			float halfWidth;
-			ComputePortal( e->to.area, e->toDir, &e->path.to, &halfWidth );
-			ComputePortal( e->from.area, e->fromDir, &e->path.from, &halfWidth );
+			ComputePortal( e->to.area, e->toDir, &e->path.to );
+			ComputePortal( e->from.area, e->fromDir, &e->path.from );
 
 			const float eyeHeight = HalfHumanHeight;
 			e->path.from.z = e->from.area->GetZ( e->path.from ) + eyeHeight;
@@ -1298,8 +1297,20 @@ void CommandNavCheckFileConsistency( void )
 	}
 	filesystem->FindClose( findHandle );
 }
-static ConCommand nav_check_file_consistency( "plugin_nav_check_file_consistency", CommandNavCheckFileConsistency, "Scans the maps directory and reports any missing/out-of-date navigation files.", FCVAR_GAMEDLL | FCVAR_CHEAT );
+static ConCommand nav_check_file_consistency( "nav_check_file_consistency", CommandNavCheckFileConsistency, "Scans the maps directory and reports any missing/out-of-date navigation files.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
+void readForX360(CUtlBuffer& fileBuffer) {
+	if ( IsX360()
+	// 360 has compressed NAVs
+			&& CLZMA::IsCompressed((unsigned char *) fileBuffer.Base())) {
+		int originalSize = CLZMA::GetActualSize(
+				(unsigned char *) fileBuffer.Base());
+		unsigned char *pOriginalData = new unsigned char[originalSize];
+		CLZMA::Uncompress((unsigned char *) fileBuffer.Base(), pOriginalData);
+		fileBuffer.AssumeMemory(pOriginalData, originalSize, originalSize,
+				CUtlBuffer::READ_ONLY);
+	}
+}
 
 //--------------------------------------------------------------------------------------------------------------
 /**
@@ -1313,26 +1324,12 @@ const CUtlVector< Place > *CNavMesh::GetPlacesFromNavFile( bool *hasUnnamedPlace
 	Q_snprintf( filename, sizeof( filename ), FORMAT_NAVFILE, STRING( gpGlobals->mapname ) );
 
 	CUtlBuffer fileBuffer( 4096, 1024*1024, CUtlBuffer::READ_ONLY );
-	if ( !filesystem->ReadFile( filename, "GAME", fileBuffer ) )	// this ignores .nav files embedded in the .bsp ...
+	if ( !filesystem->ReadFile( filename, "GAME", fileBuffer ) 	// this ignores .nav files embedded in the .bsp ...
+		&& !filesystem->ReadFile( filename, "BSP", fileBuffer ) )	// ... and this looks for one if it's the only one around.
 	{
-		if ( !filesystem->ReadFile( filename, "BSP", fileBuffer ) )	// ... and this looks for one if it's the only one around.
-		{
-			return NULL;
-		}
+		return NULL;
 	}
-	
-	if ( IsX360() )
-	{
-		// 360 has compressed NAVs
-		if ( CLZMA::IsCompressed( (unsigned char *)fileBuffer.Base() ) )
-		{
-			int originalSize = CLZMA::GetActualSize( (unsigned char *)fileBuffer.Base() );
-			unsigned char *pOriginalData = new unsigned char[originalSize];
-			CLZMA::Uncompress( (unsigned char *)fileBuffer.Base(), pOriginalData );
-			fileBuffer.AssumeMemory( pOriginalData, originalSize, originalSize, CUtlBuffer::READ_ONLY );
-		}
-	}
-
+	readForX360(fileBuffer);
 	// check magic number
 	unsigned int magic = fileBuffer.GetUnsignedInt();
 	if ( !fileBuffer.IsValid() || magic != NAV_MAGIC_NUMBER )
@@ -1413,19 +1410,7 @@ NavErrorType CNavMesh::Load( void )
 			return NAV_CANT_ACCESS_FILE;
 		}
 	}
-
-	if ( IsX360() )
-	{
-		// 360 has compressed NAVs
-		if ( CLZMA::IsCompressed( (unsigned char *)fileBuffer.Base() ) )
-		{
-			int originalSize = CLZMA::GetActualSize( (unsigned char *)fileBuffer.Base() );
-			unsigned char *pOriginalData = new unsigned char[originalSize];
-			CLZMA::Uncompress( (unsigned char *)fileBuffer.Base(), pOriginalData );
-			fileBuffer.AssumeMemory( pOriginalData, originalSize, originalSize, CUtlBuffer::READ_ONLY );
-		}
-	}
-
+	readForX360(fileBuffer);
 	// check magic number
 	unsigned int magic = fileBuffer.GetUnsignedInt();
 	if ( !fileBuffer.IsValid() || magic != NAV_MAGIC_NUMBER )

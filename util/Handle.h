@@ -46,7 +46,7 @@ public:
 	}
 
 	void Set(const T* pVal) {
-		CBaseHandle::Set(reinterpret_cast<const IHandleEntity*>(pVal));
+		CBaseHandle::Set(dynamic_cast<const IHandleEntity*>(pVal));
 	}
 	operator T*() {
 		return Get();

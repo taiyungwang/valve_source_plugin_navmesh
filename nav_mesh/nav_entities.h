@@ -14,6 +14,7 @@
 
 #include "CountDownTimer.h"
 #include "util/Handle.h"
+#include <iserverentity.h>
 #include <fmtstr.h>
 #include <string_t.h>
 #include <utlvector.h>
@@ -30,7 +31,7 @@ struct inputdata_t;
   * An entity that modifies pathfinding cost to all areas it overlaps, to allow map designers
   * to tell bots to avoid/prefer certain regions.
   */
-class CFuncNavCost
+class CFuncNavCost: public IServerEntity
 {
 public:
 
@@ -121,6 +122,7 @@ private:
 
 	void BlockNav( void );
 	void UnblockNav( void );
+	void toggleBlock(bool block);
 	bool m_isBlockingNav[2];
 	int m_blockedTeamNumber;
 	bool m_bDisabled;

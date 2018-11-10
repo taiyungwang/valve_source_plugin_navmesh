@@ -12,27 +12,21 @@
 #define _NAV_LADDER_H_
 
 #include "nav.h"
-#include "util/Handle.h"
+#include <util/Handle.h>
 #include <utlvector.h>
 
 class CUtlBuffer;
 class CNavArea;
 class CNavMesh;
 class IPlayerInfo;
+class IServerEntity;
 struct edict_t;
 
 
-typedef CHandle<edict_t> EHandle;
+typedef CHandle<IServerEntity> EHandle;
 
 edict_t* findEntityByMoveTypeNearest(unsigned char type, const Vector& pos,
 		float maxRadius);
-
-edict_t* findEntityByClassNameNearest(const char* name, const Vector& pos,
-		float maxRadius);
-
-IPlayerInfo *UTIL_GetListenServerHost( void );
-
-edict_t* UTIL_GetListenServerEnt();
 
 //--------------------------------------------------------------------------------------------------------------
 /**
@@ -108,9 +102,16 @@ public:
 	void Shift( const Vector &shift );							///< shift the nav ladder
 
 	bool IsUsableByTeam( int teamNumber ) const;
-	edict_t *GetLadderEntity( void ) const;
+	IServerEntity *GetLadderEntity( void ) const;
+
+	void adJustEnds(int mask);
+
+	void resetAreas(float maxHeightAboveTopArea);
 
 private:
+
+	void findLadderEndPosition(Vector& end, int mask, bool isTop) const;
+
 	void FindLadderEntity( void );
 
 	EHandle m_ladderEntity;
@@ -137,7 +138,7 @@ private:
 typedef CUtlVector< CNavLadder * > NavLadderVector;
 
 //--------------------------------------------------------------------------------------------------------------
-inline edict_t *CNavLadder::GetLadderEntity( void ) const
+inline IServerEntity *CNavLadder::GetLadderEntity( void ) const
 {
 	return m_ladderEntity.Get();
 }

@@ -11,15 +11,17 @@
 
 #include "nav_entities.h"
 
-#include "nav_mesh.h"
+
 #include "nav_area.h"
-#include "util/UtilTrace.h"
+#include "nav_mesh.h"
+#include <util/UtilTrace.h>
 #include <eiface.h>
 #include <iplayerinfo.h>
 #include <collisionutils.h>
 #include <ivdebugoverlay.h>
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
+
 
 // the global singleton interface
 extern CNavMesh *TheNavMesh;
@@ -48,8 +50,7 @@ void CFuncNavCost::Spawn( void )
 
 	gm_masterCostVector.AddToTail( this );
 	gm_dirtyTimer.Start( UPDATE_DIRTY_TIME );
-/*
- * TODO
+/**TODO
 	SetSolid( SOLID_BSP );	
 	AddSolidFlags( FSOLID_NOT_SOLID );
 
@@ -60,9 +61,9 @@ void CFuncNavCost::Spawn( void )
 
 	VPhysicsInitShadow( false, false );
 
-	// TODO: SetThink( &CFuncNavCost::CostThink );
+	SetThink( &CFuncNavCost::CostThink );
 	SetNextThink( playerinfomanager->GetGlobalVars()->curtime + UPDATE_DIRTY_TIME );
- */
+*/
 
 	m_tags.RemoveAll();
 
@@ -451,19 +452,7 @@ void CFuncNavBlocker::InputUnblockNav( inputdata_t &inputdata )
 //--------------------------------------------------------------------------------------------------------
 void CFuncNavBlocker::BlockNav( void )
 {
-	if ( m_blockedTeamNumber == TEAM_ANY )
-	{
-		for ( int i=0; i<MAX_NAV_TEAMS; ++i )
-		{
-			m_isBlockingNav[ i ] = true;
-		}
-	}
-	else
-	{
-		int teamNumber = m_blockedTeamNumber % MAX_NAV_TEAMS;
-		m_isBlockingNav[ teamNumber ] = true;
-	}
-
+	toggleBlock(true);
 	Extent extent;
 	extent.Init( this->pEnt );
 	TheNavMesh->ForAllAreasOverlappingExtent( *this, extent );
@@ -473,22 +462,23 @@ void CFuncNavBlocker::BlockNav( void )
 //--------------------------------------------------------------------------------------------------------
 void CFuncNavBlocker::UnblockNav( void )
 {
+	toggleBlock(false);
+	UpdateBlocked();
+}
+
+void CFuncNavBlocker::toggleBlock(bool block) {
 	if ( m_blockedTeamNumber == TEAM_ANY )
 	{
 		for ( int i=0; i<MAX_NAV_TEAMS; ++i )
 		{
-			m_isBlockingNav[ i ] = false;
+			m_isBlockingNav[ i ] = block;
 		}
 	}
 	else
 	{
-		int teamNumber = m_blockedTeamNumber % MAX_NAV_TEAMS;
-		m_isBlockingNav[ teamNumber ] = false;
+		m_isBlockingNav[ m_blockedTeamNumber % MAX_NAV_TEAMS ] = block;
 	}
-
-	UpdateBlocked();
 }
-
 
 //--------------------------------------------------------------------------------------------------------
 // functor that blocks areas in our extent

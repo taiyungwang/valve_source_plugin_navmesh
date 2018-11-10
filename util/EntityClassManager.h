@@ -12,6 +12,9 @@
 class EntityClass;
 class IServerGameDLL;
 
+/**
+ * Manages and caches any entity class variable used.
+ */
 class EntityClassManager {
 public:
 	EntityClassManager(IServerGameDLL *servergamedll);

@@ -11,11 +11,11 @@
 
 #include "nav_node.h"
 
+#include "nav.h"
 #include "nav_colors.h"
 #include "nav_mesh.h"
-#include "nav.h"
-#include "util/EntityUtils.h"
-#include "util/UtilTrace.h"
+#include <util/EntityUtils.h>
+#include <util/UtilTrace.h>
 #include "tier1/utlhash.h"
 #include "tier1/generichash.h"
 #include <eiface.h>
@@ -23,6 +23,7 @@
 #include <iplayerinfo.h>
 // NOTE: This has to be the last file included!
 #include "tier0/memdbgon.h"
+
 
 NavDirType Opposite[ NUM_DIRECTIONS ] = { SOUTH, WEST, NORTH, EAST };
 
@@ -141,12 +142,12 @@ void CNavNode::CleanupGeneration()
 
 //--------------------------------------------------------------------------------------------------------------
 #if DEBUG_NAV_NODES
-ConVar nav_show_nodes( "plugin_nav_show_nodes", "0", FCVAR_CHEAT );
-ConVar nav_show_node_id( "plugin_nav_show_node_id", "0", FCVAR_CHEAT );
-ConVar nav_test_node( "plugin_nav_test_node", "0", FCVAR_CHEAT );
-ConVar nav_test_node_crouch( "plugin_nav_test_node_crouch", "0", FCVAR_CHEAT );
-ConVar nav_test_node_crouch_dir( "plugin_nav_test_node_crouch_dir", "4", FCVAR_CHEAT );
-ConVar nav_show_node_grid( "plugin_nav_show_node_grid", "0", FCVAR_CHEAT );
+ConVar nav_show_nodes( "nav_show_nodes", "0", FCVAR_CHEAT );
+ConVar nav_show_node_id( "nav_show_node_id", "0", FCVAR_CHEAT );
+ConVar nav_test_node( "nav_test_node", "0", FCVAR_CHEAT );
+ConVar nav_test_node_crouch( "nav_test_node_crouch", "0", FCVAR_CHEAT );
+ConVar nav_test_node_crouch_dir( "nav_test_node_crouch_dir", "4", FCVAR_CHEAT );
+ConVar nav_show_node_grid( "nav_show_node_grid", "0", FCVAR_CHEAT );
 #endif // DEBUG_NAV_NODES
 
 
@@ -192,22 +193,15 @@ void Text(const Vector &origin, const char *text, bool bViewCheck,
 	IPlayerInfo* player = playerinfomanager->GetPlayerInfo(ent);
 	if (!player)
 		return;
-	const unsigned int MAX_OVERLAY_DIST_SQR	= 90000000;
-
 	// Clip text that is far away
-	if ((player->GetAbsOrigin() - origin).LengthSqr() > MAX_OVERLAY_DIST_SQR)
+	if ((player->GetAbsOrigin() - origin).LengthSqr() > 90000000)
 		return;
 	extern IServerGameClients* gameclients;
 	// Clip text that is behind the client
 	Vector clientForward;
 	gameclients->ClientEarPosition(ent, &clientForward);
 	AngleVectors( player->GetAbsAngles(), &clientForward, nullptr, nullptr );
-
-
-	Vector toText = origin - player->GetAbsOrigin();
-	float dotPr = DotProduct(clientForward, toText);
-
-	if (dotPr < 0)
+	if (DotProduct(clientForward, origin - player->GetAbsOrigin()) < 0)
 		return;
 
 	// Clip text that is obscured
@@ -237,14 +231,7 @@ void CNavNode::Draw( void )
 
 	if ( m_isCovered )
 	{
-		if ( GetAttributes() & NAV_MESH_CROUCH )
-		{
-			b = 255;
-		}
-		else
-		{
-			r = 255;
-		}
+		((GetAttributes() & NAV_MESH_CROUCH ) ? b : r) = 255;
 	}
 	else
 	{
@@ -506,9 +493,7 @@ CNavNode *CNavNode::GetNode( const Vector &pos )
 		{
 			for( pNode = g_pNavNodeHash->Element( hNode ); pNode; pNode = pNode->m_nextAtXY )
 			{
-				float dz = fabs( pNode->m_pos.z - pos.z );
-
-				if (dz < tolerance)
+				if (fabs( pNode->m_pos.z - pos.z ) < tolerance)
 				{
 					break;
 				}
@@ -543,12 +528,7 @@ CNavNode *CNavNode::GetNode( const Vector &pos )
  */
 BOOL CNavNode::IsBiLinked( NavDirType dir ) const
 {
-	if (m_to[ dir ] && m_to[ dir ]->m_to[ Opposite[dir] ] == this)
-	{
-		return true;
-	}
-
-	return false;
+	return m_to[ dir ] && m_to[ dir ]->m_to[ Opposite[dir] ] == this;
 }
 
 //--------------------------------------------------------------------------------------------------------------
@@ -558,15 +538,10 @@ BOOL CNavNode::IsBiLinked( NavDirType dir ) const
  */
 BOOL CNavNode::IsClosedCell( void ) const
 {
-	if (IsBiLinked( SOUTH ) &&
+	return IsBiLinked( SOUTH ) &&
 		IsBiLinked( EAST ) &&
 		m_to[ EAST ]->IsBiLinked( SOUTH ) &&
 		m_to[ SOUTH ]->IsBiLinked( EAST ) &&
-		m_to[ EAST ]->m_to[ SOUTH ] == m_to[ SOUTH ]->m_to[ EAST ])
-	{
-		return true;
-	}
-
-	return false;
+		m_to[ EAST ]->m_to[ SOUTH ] == m_to[ SOUTH ]->m_to[ EAST ];
 }
 
