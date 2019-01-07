@@ -2042,17 +2042,13 @@ void CommandNavCenterInWorld( void )
 	worldExtent.hi = world->getEntityVar("m_WorldMaxs").get<Vector>(worldEnt);
 
 	// Compute the difference, and shift in XY
-	Vector navCenter = ( navExtent.lo + navExtent.hi ) * 0.5f;
-	Vector worldCenter = ( worldExtent.lo + worldExtent.hi ) * 0.5f;
-	Vector shift = worldCenter - navCenter;
+	Vector shift = (worldExtent.lo + worldExtent.hi - navExtent.lo - navExtent.hi) * 0.5f;
 	shift.z = 0.0f;
 
 	// update the position of all areas
 	FOR_EACH_VEC( TheNavAreas, it )
 	{
-		CNavArea *area = TheNavAreas[ it ];
-
-		area->Shift( shift );
+		TheNavAreas[ it ]->Shift( shift );
 	}
 
 	EmitSound(player, "EDIT_END_AREA.Creating" );
@@ -2106,13 +2102,8 @@ void CNavMesh::CommandNavSelectInvalidAreas( void )
 	EmitSound(player,  m_selectedSet.Count() ? "EDIT_MARK.Enable" : "EDIT_MARK.Disable" );
 }
 
-
-//--------------------------------------------------------------------------------------------------------------
-/**
- * Add blocked areas to selected set
- */
-void CNavMesh::CommandNavSelectBlockedAreas( void )
-{
+template<typename Func>
+void CNavMesh::selectAreas(const Func& shouldSelect) {
 	edict_t* player = UTIL_GetListenServerEnt();
 	if (player == NULL || !IsEditMode( NORMAL ) )
 		return;
@@ -2123,33 +2114,7 @@ void CNavMesh::CommandNavSelectBlockedAreas( void )
 	{
 		CNavArea *area = TheNavAreas[ it ];
 
-		if ( area && area->IsBlocked( TEAM_ANY ) )
-		{
-			AddToSelectedSet( area );
-		}
-	}
-	Msg( "Selected %d areas.\n", m_selectedSet.Count() );
-	EmitSound(player, m_selectedSet.Count() ? "EDIT_MARK.Enable" : "EDIT_MARK.Disable" );
-}
-
-
-//--------------------------------------------------------------------------------------------------------------
-/**
- * Add obstructed areas to selected set
- */
-void CNavMesh::CommandNavSelectObstructedAreas( void )
-{
-	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL || !IsEditMode( NORMAL ) )
-		return;
-
-	ClearSelectedSet();
-
-	FOR_EACH_VEC( TheNavAreas, it )
-	{
-		CNavArea *area = TheNavAreas[ it ];
-
-		if ( area && area->HasAvoidanceObstacle() )
+		if ( area && shouldSelect(area) )
 		{
 			AddToSelectedSet( area );
 		}
@@ -2157,59 +2122,6 @@ void CNavMesh::CommandNavSelectObstructedAreas( void )
 	Msg( "Selected %d areas.\n", m_selectedSet.Count() );
 	EmitSound(player, m_selectedSet.Count() ? "EDIT_MARK.Enable" : "EDIT_MARK.Disable");
 }
-
-
-//--------------------------------------------------------------------------------------------------------------
-/**
- * Add damaging areas to selected set
- */
-void CNavMesh::CommandNavSelectDamagingAreas( void )
-{
-	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL || !IsEditMode( NORMAL ) )
-		return;
-
-	ClearSelectedSet();
-
-	FOR_EACH_VEC( TheNavAreas, it )
-	{
-		CNavArea *area = TheNavAreas[ it ];
-
-		if ( area && area->IsDamaging() )
-		{
-			AddToSelectedSet( area );
-		}
-	}
-	Msg( "Selected %d areas.\n", m_selectedSet.Count() );
-	EmitSound(player, m_selectedSet.Count() ? "EDIT_MARK.Enable" : "EDIT_MARK.Disable");
-}
-
-
-//--------------------------------------------------------------------------------------------------------------
-/**
- * Adds stairs areas to the selected set
- */
-void CNavMesh::CommandNavSelectStairs( void )
-{
-	edict_t* player = UTIL_GetListenServerEnt();
-	if ( player == NULL || !IsEditMode( NORMAL ) )
-		return;
-
-	ClearSelectedSet();
-
-	FOR_EACH_VEC( TheNavAreas, it )
-	{
-		CNavArea *area = TheNavAreas[ it ];
-
-		if ( area && area->HasAttributes( NAV_MESH_STAIRS ) )
-		{
-			AddToSelectedSet( area );
-		}
-	}
-	Msg( "Selected %d areas.\n", m_selectedSet.Count() );
-	EmitSound(player, m_selectedSet.Count() ? "EDIT_MARK.Enable" : "EDIT_MARK.Disable");
-}
-
 
 //--------------------------------------------------------------------------------------------------------------
 // Adds areas not connected to mesh to the selected set
@@ -3097,8 +3009,7 @@ void CNavMesh::CommandNavPlaceSet( void )
 	{
 		FOR_EACH_VEC( m_selectedSet, it )
 		{
-			CNavArea *area = m_selectedSet[ it ];
-			area->SetPlace( TheNavMesh->GetNavPlace() );
+			m_selectedSet[ it ]->SetPlace( TheNavMesh->GetNavPlace() );
 		}
 	}
 }
@@ -3198,8 +3109,7 @@ void CNavMesh::CommandNavMarkUnnamed( void )
 				int totalUnnamedAreas = 0;
 				FOR_EACH_VEC( TheNavAreas, it )
 				{
-					CNavArea *area = TheNavAreas[ it ];
-					if ( area->GetPlace() == 0 )
+					if ( TheNavAreas[ it ]->GetPlace() == 0 )
 					{
 						++totalUnnamedAreas;
 					}
@@ -3238,19 +3148,10 @@ void CNavMesh::CommandNavCornerSelect( void )
 	}
 }
 
-
-//--------------------------------------------------------------------------------------------------------------
-void CNavMesh::CommandNavCornerRaise( const CCommand &args )
-{
+void CNavMesh::adjustNavCorner(int amount) {
 	edict_t* player = UTIL_GetListenServerEnt();
 	if (player == NULL || !IsEditMode( NORMAL ) )
 		return;
-
-	int amount = 1;
-	if ( args.ArgC() > 1 )
-	{
-		amount = atoi( args[1] );
-	}
 
 	if (IsSelectedSetEmpty())
 	{
@@ -3280,58 +3181,9 @@ void CNavMesh::CommandNavCornerRaise( const CCommand &args )
 			m_selectedSet[ it ]->RaiseCorner( NUM_CORNERS, amount, false );
 		}
 
-		Msg( "Raised %d areas\n", m_selectedSet.Count() );
+		Msg( "%s %d areas\n", amount < 0 ? "Lowered" : "Raised", m_selectedSet.Count() );
 	}
 }
-
-
-//--------------------------------------------------------------------------------------------------------------
-void CNavMesh::CommandNavCornerLower( const CCommand &args )
-{
-	edict_t* player = UTIL_GetListenServerEnt();
-	if (player == NULL || !IsEditMode( NORMAL ) )
-		return;
-
-	int amount = -1;
-	if ( args.ArgC() > 1 )
-	{
-		amount = -atoi( args[1] );
-	}
-
-	if (IsSelectedSetEmpty())
-	{
-		// the old way
-		FindActiveNavArea();
-
-		if ( m_selectedArea )
-		{
-			if (GetMarkedArea())
-			{
-				GetMarkedArea()->RaiseCorner( m_markedCorner, amount );
-				EmitSound(player, "EDIT_MOVE_CORNER.MarkedArea" );
-			}
-			else
-			{
-				EmitSound(player, "EDIT_MOVE_CORNER.NoMarkedArea" );
-			}
-		}
-	}
-	else
-	{
-		// raise all areas in the selected set
-		EmitSound(player, "EDIT_MOVE_CORNER.MarkedArea" );
-
-		FOR_EACH_VEC( m_selectedSet, it )
-		{
-			CNavArea *area = m_selectedSet[ it ];
-
-			area->RaiseCorner( NUM_CORNERS, amount, false );
-		}
-
-		Msg( "Lowered %d areas\n", m_selectedSet.Count() );
-	}
-}
-
 
 //--------------------------------------------------------------------------------------------------------------
 void CNavMesh::CommandNavCornerPlaceOnGround( const CCommand &args )

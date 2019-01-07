@@ -358,9 +358,6 @@ public:
 	void AddFuncNavCostEntity( CFuncNavCost *cost );				// add the given func_nav_cost entity to the cost of this area
 	float ComputeFuncNavCost( edict_t *who ) const;	// return the cost multiplier of this area's func_nav_cost entities for the given actor
 
-	template<typename T>
-	bool HasFunc(void) const;
-
 	bool HasFuncNavAvoid( void ) const;
 
 	bool HasFuncNavPrefer( void ) const;
@@ -700,6 +697,9 @@ private:
 	void build();
 
 	void buildFromNodes();
+
+	template<typename T>
+	bool HasFunc(void) const;
 
 	bool m_isUnderwater;										// true if the center of the area is underwater
 

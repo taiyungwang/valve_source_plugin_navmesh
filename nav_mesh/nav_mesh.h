@@ -389,11 +389,23 @@ public:
 	void CommandNavEndDeselecting( void );								// stop continuously de-selecting areas from the selected set
 	void CommandNavToggleDeselecting( bool playSound = true );			// start/stop continuously de-selecting areas from the selected set
 	void CommandNavSelectInvalidAreas( void );							// adds invalid areas to the selected set
-	void CommandNavSelectBlockedAreas( void );							// adds blocked areas to the selected set
-	void CommandNavSelectObstructedAreas( void );						// adds obstructed areas to the selected set
-	void CommandNavSelectDamagingAreas( void );							// adds damaging areas to the selected set
+	void CommandNavSelectBlockedAreas(void) {
+		// adds blocked areas to the selected set
+		selectAreas([](CNavArea* area) {return area->IsBlocked(TEAM_ANY);});
+	}
+	void CommandNavSelectObstructedAreas(void) {
+		// adds obstructed areas to the selected set
+		selectAreas([](CNavArea* area) {return area->HasAvoidanceObstacle();});
+	}
+	void CommandNavSelectDamagingAreas( void ) {
+		// adds damaging areas to the selected set
+		selectAreas([](CNavArea* area) {return area->IsDamaging();});
+	}
 	void CommandNavSelectHalfSpace( const CCommand &args );				// selects all areas that intersect the half-space
-	void CommandNavSelectStairs( void );								// adds stairs areas to the selected set
+	void CommandNavSelectStairs( void ) {
+		// adds stairs areas to the selected set
+		selectAreas([](CNavArea* area) {return area->HasAttributes(NAV_MESH_STAIRS);});
+	}
 	void CommandNavSelectOrphans( void );								// adds areas not connected to mesh to the selected set
 
 	void CommandNavSplit( void );										// split current area
@@ -420,8 +432,14 @@ public:
 	void CommandNavTogglePlacePainting( void );							// switch between "painting" places onto areas
 	void CommandNavMarkUnnamed( void );									// mark an unnamed area for further operations
 	void CommandNavCornerSelect( void );								// select a corner on the current area
-	void CommandNavCornerRaise( const CCommand &args );					// raise a corner on the current area
-	void CommandNavCornerLower( const CCommand &args );					// lower a corner on the current area
+	void CommandNavCornerRaise( const CCommand &args ) {
+		// raise a corner on the current area
+		adjustNavCorner(args.ArgC() > 1 ? atoi(args[1]) : 1);
+	}
+	void CommandNavCornerLower( const CCommand &args ) {
+		// lower a corner on the current area
+		adjustNavCorner(args.ArgC() > 1 ? -atoi(args[1]) : -1);
+	}
 	void CommandNavCornerPlaceOnGround( const CCommand &args );			// position a corner on the current area at ground height
 	void CommandNavWarpToMark( void );									// warp a spectating local player to the selected mark
 	void CommandNavLadderFlip( void );									// Flips the direction a ladder faces
@@ -1046,6 +1064,10 @@ private:
 	CNavArea *m_hashTable[ HASH_TABLE_SIZE ];					// hash table to optimize lookup by ID
 	int ComputeHashKey( unsigned int id ) const;				// returns a hash key for the given nav area ID
 	void addLadder(CNavLadder* ladder, float maxHeightAboveTopArea);
+	template<typename Func>
+	void selectAreas(const Func& selector);
+
+	void adjustNavCorner(int amount);
 
 	int WorldToGridX( float wx ) const;							// given X component, return grid index
 	int WorldToGridY( float wy ) const;							// given Y component, return grid index

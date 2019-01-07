@@ -3157,7 +3157,6 @@ bool CNavMesh::UpdateGeneration(float maxTime) {
 				} else {
 					eyePos.z += delta; // players light from their centers, and we light from slightly below that, to allow for low ceilings
 				}
-
 				// TODO: host->SetAbsOrigin( eyePos );
 				AnalysisProgress("Finding light intensity...", 100,
 						100 * (TheNavAreas.Count() - s_unlitAreas.Count())
@@ -3165,20 +3164,18 @@ bool CNavMesh::UpdateGeneration(float maxTime) {
 				s_movedPlayerToArea = moveArea->GetID();
 				s_playerSettleTimer.Start(0.1f);
 				return true;
-			} else {
-				Msg("Finding light intensity...DONE (%d unlit areas)\n",
-						s_unlitAreas.Count());
-				if (s_unlitAreas.Count()) {
-					Warning("To see unlit areas:\n");
-					for (int sit = 0; sit < s_unlitAreas.Count(); ++sit) {
-						Warning("nav_unmark; nav_mark %d; nav_warp_to_mark;\n",
-								 s_unlitAreas[sit]->GetID());
-					}
-				}
-
-				m_generationState = CUSTOM;
-				m_generationIndex = 0;
 			}
+			Msg("Finding light intensity...DONE (%d unlit areas)\n",
+					s_unlitAreas.Count());
+			if (s_unlitAreas.Count()) {
+				Warning("To see unlit areas:\n");
+				for (int sit = 0; sit < s_unlitAreas.Count(); ++sit) {
+					Warning("nav_unmark; nav_mark %d; nav_warp_to_mark;\n",
+							 s_unlitAreas[sit]->GetID());
+				}
+			}
+			m_generationState = CUSTOM;
+			m_generationIndex = 0;
 		}
 
 		Msg("Finding light intensity...DONE\n");

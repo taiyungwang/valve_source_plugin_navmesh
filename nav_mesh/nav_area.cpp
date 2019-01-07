@@ -300,8 +300,7 @@ CNavArea::CNavArea(unsigned int place) {
 
 //--------------------------------------------------------------------------------------------------------------
 inline void CNavArea::MarkAsDamaging(float duration) {
-	CGlobalVars *gpGlobals = playerinfomanager->GetGlobalVars();
-	m_damagingTickCount = gpGlobals->tickcount + TIME_TO_TICKS(duration);
+	m_damagingTickCount = playerinfomanager->GetGlobalVars()->tickcount + TIME_TO_TICKS(duration);
 }
 
 //--------------------------------------------------------------------------------------------------------------
