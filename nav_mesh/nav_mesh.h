@@ -389,23 +389,11 @@ public:
 	void CommandNavEndDeselecting( void );								// stop continuously de-selecting areas from the selected set
 	void CommandNavToggleDeselecting( bool playSound = true );			// start/stop continuously de-selecting areas from the selected set
 	void CommandNavSelectInvalidAreas( void );							// adds invalid areas to the selected set
-	void CommandNavSelectBlockedAreas(void) {
-		// adds blocked areas to the selected set
-		selectAreas([](CNavArea* area) {return area->IsBlocked(TEAM_ANY);});
-	}
-	void CommandNavSelectObstructedAreas(void) {
-		// adds obstructed areas to the selected set
-		selectAreas([](CNavArea* area) {return area->HasAvoidanceObstacle();});
-	}
-	void CommandNavSelectDamagingAreas( void ) {
-		// adds damaging areas to the selected set
-		selectAreas([](CNavArea* area) {return area->IsDamaging();});
-	}
+	void CommandNavSelectBlockedAreas( void );							// adds blocked areas to the selected set
+	void CommandNavSelectObstructedAreas( void );						// adds obstructed areas to the selected set
+	void CommandNavSelectDamagingAreas( void );							// adds damaging areas to the selected set
 	void CommandNavSelectHalfSpace( const CCommand &args );				// selects all areas that intersect the half-space
-	void CommandNavSelectStairs( void ) {
-		// adds stairs areas to the selected set
-		selectAreas([](CNavArea* area) {return area->HasAttributes(NAV_MESH_STAIRS);});
-	}
+	void CommandNavSelectStairs( void );								// adds stairs areas to the selected set
 	void CommandNavSelectOrphans( void );								// adds areas not connected to mesh to the selected set
 
 	void CommandNavSplit( void );										// split current area
@@ -512,8 +500,7 @@ public:
 		{
 			FOR_EACH_VEC( m_selectedSet, it )
 			{
-				CNavArea *area = m_selectedSet[ it ];
-				if (!func( area ))
+				if (!func( m_selectedSet[ it ] ))
 					return false;
 			}
 		}

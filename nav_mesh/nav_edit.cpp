@@ -336,18 +336,13 @@ bool CNavMesh::FindActiveNavArea( void )
 	{
 		if ( !IsEditMode( CREATING_AREA ) )
 		{
-			m_climbableSurface = physprops->GetSurfaceData(
-					result.surface.surfaceProps)->game.climbable != 0
-					|| (result.contents & CONTENTS_LADDER) != 0;
 			m_surfaceNormal = result.plane.normal;
-			if ( m_climbableSurface
+			m_climbableSurface = (physprops->GetSurfaceData(result.surface.surfaceProps)->game.climbable != 0
+					|| (result.contents & CONTENTS_LADDER) != 0)
 					// check if we're on the same plane as the original point when we're building a ladder
-					&& ((IsEditMode(CREATING_LADDER)
-							&& m_surfaceNormal != m_ladderNormal)
-							// don't try to build ladders on flat ground
-							|| m_surfaceNormal.z > 0.9f)) {
-				m_climbableSurface = false;
-			}
+					&& (!IsEditMode(CREATING_LADDER) || m_surfaceNormal == m_ladderNormal)
+					// don't try to build ladders on flat ground
+					&& m_surfaceNormal.z <= 0.9f;
 		}
 
 		if ( ( m_climbableSurface && !IsEditMode( CREATING_LADDER ) ) || !IsEditMode( CREATING_AREA ) )
@@ -2121,6 +2116,42 @@ void CNavMesh::selectAreas(const Func& shouldSelect) {
 	}
 	Msg( "Selected %d areas.\n", m_selectedSet.Count() );
 	EmitSound(player, m_selectedSet.Count() ? "EDIT_MARK.Enable" : "EDIT_MARK.Disable");
+}
+
+//--------------------------------------------------------------------------------------------------------------
+/**
+ * Add blocked areas to selected set
+ */
+void CNavMesh::CommandNavSelectBlockedAreas( void )
+{
+	selectAreas([](CNavArea* area) {return area->IsBlocked(TEAM_ANY);});
+}
+
+//--------------------------------------------------------------------------------------------------------------
+/**
+ * Add obstructed areas to selected set
+ */
+void CNavMesh::CommandNavSelectObstructedAreas( void )
+{
+	selectAreas([](CNavArea* area) {return area->HasAvoidanceObstacle();});
+}
+
+//--------------------------------------------------------------------------------------------------------------
+/**
+ * Add damaging areas to selected set
+ */
+void CNavMesh::CommandNavSelectDamagingAreas( void )
+{
+	selectAreas([](CNavArea* area) {return area->IsDamaging();});
+}
+
+//--------------------------------------------------------------------------------------------------------------
+/**
+ * Adds stairs areas to the selected set
+ */
+void CNavMesh::CommandNavSelectStairs( void )
+{
+	selectAreas([](CNavArea* area) {return area->HasAttributes(NAV_MESH_STAIRS);});
 }
 
 //--------------------------------------------------------------------------------------------------------------
