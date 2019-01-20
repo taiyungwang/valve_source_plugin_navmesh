@@ -251,7 +251,6 @@ public:
 	virtual void DestroyArea( CNavArea * ) const;
 	virtual HidingSpot *CreateHidingSpot( void ) const;					// Hiding Spot factory
 
-	virtual void Reset( void );											// destroy Navigation Mesh data and revert to initial state
 	virtual void Update( void );										// invoked on each game frame
 
 	virtual void FireGameEvent( IGameEvent *event );					// incoming event processing
@@ -1049,6 +1048,7 @@ private:
 
 	enum { HASH_TABLE_SIZE = 256 };
 	CNavArea *m_hashTable[ HASH_TABLE_SIZE ];					// hash table to optimize lookup by ID
+	virtual void Reset( void );											// destroy Navigation Mesh data and revert to initial state
 	int ComputeHashKey( unsigned int id ) const;				// returns a hash key for the given nav area ID
 	void addLadder(CNavLadder* ladder, float maxHeightAboveTopArea);
 	template<typename Func>

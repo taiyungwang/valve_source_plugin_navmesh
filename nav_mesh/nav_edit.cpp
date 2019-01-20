@@ -339,7 +339,6 @@ bool CNavMesh::FindActiveNavArea( void )
 			m_surfaceNormal = result.plane.normal;
 			m_climbableSurface = (physprops->GetSurfaceData(result.surface.surfaceProps)->game.climbable != 0
 					|| (result.contents & CONTENTS_LADDER) != 0)
-					// check if we're on the same plane as the original point when we're building a ladder
 					&& (!IsEditMode(CREATING_LADDER) || m_surfaceNormal == m_ladderNormal)
 					// don't try to build ladders on flat ground
 					&& m_surfaceNormal.z <= 0.9f;
@@ -3236,8 +3235,9 @@ void CNavMesh::CommandNavCornerPlaceOnGround( const CCommand &args )
 
 		if ( m_selectedArea )
 		{
-			m_markedArea->PlaceOnGround(
-					m_markedArea ? m_markedCorner : NUM_CORNERS, inset);
+			bool areaMarked = m_markedArea != nullptr;
+			(areaMarked ? m_markedArea : m_selectedArea)->PlaceOnGround(
+					areaMarked ? m_markedCorner : NUM_CORNERS, inset);
 			EmitSound(player, "EDIT_MOVE_CORNER.MarkedArea" );
 		}
 		else
