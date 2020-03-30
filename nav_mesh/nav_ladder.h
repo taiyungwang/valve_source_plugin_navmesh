@@ -104,14 +104,7 @@ public:
 	bool IsUsableByTeam( int teamNumber ) const;
 	IServerEntity *GetLadderEntity( void ) const;
 
-	void adJustEnds(int mask);
-
-	void resetAreas(float maxHeightAboveTopArea);
-
 private:
-
-	void findLadderEndPosition(Vector& end, int mask, bool isTop) const;
-
 	void FindLadderEntity( void );
 
 	EHandle m_ladderEntity;

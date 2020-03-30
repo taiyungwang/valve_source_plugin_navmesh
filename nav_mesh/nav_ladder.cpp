@@ -9,11 +9,10 @@
 // Author: Michael S. Booth (mike@turtlerockstudios.com), January 2003
 
 #include "nav_area.h"
-
 #include "nav_colors.h"
+#include "nav.h"
 #include "nav_mesh.h"
-#include <util/BaseEntity.h>
-#include <util/UtilTrace.h>
+#include <util/BasePlayer.h>
 #include <util/EntityUtils.h>
 #include <gametrace.h>
 #include <eiface.h>
@@ -29,6 +28,7 @@
 extern ConVar nav_area_bgcolor;
 extern IPlayerInfoManager* playerinfomanager;
 extern IVDebugOverlay* debugoverlay;
+extern IVEngineServer *engine;
 
 unsigned int CNavLadder::m_nextID = 1;
 
@@ -44,7 +44,7 @@ void CNavLadder::Shift( const Vector &shift )
 
 
 
- void CNavLadder::CompressIDs( CNavMesh* TheNavMesh )
+ void CNavLadder::CompressIDs( CNavMesh* TheNaVmesh )
 {
 	m_nextID = 1;
 
@@ -88,9 +88,17 @@ void CNavLadder::OnSplit( CNavArea *original, CNavArea *alpha, CNavArea *beta )
 
 		if ( areaConnection && *areaConnection == original )
 		{
-			*areaConnection = alpha->GetDistanceSquaredToPoint( m_top )
-					< beta->GetDistanceSquaredToPoint( m_top )
-					? alpha: beta;
+			float alphaDistance = alpha->GetDistanceSquaredToPoint( m_top );
+			float betaDistance = beta->GetDistanceSquaredToPoint( m_top );
+
+			if ( alphaDistance < betaDistance )
+			{
+				*areaConnection = alpha;
+			}
+			else
+			{
+				*areaConnection = beta;
+			}
 		}
 	}
 }
@@ -108,15 +116,31 @@ void CNavLadder::ConnectTo( CNavArea *area )
 	{
 		// connect to top
 		NavDirType dir;
+
 		Vector dirVector = area->GetCenter() - m_top;
 		if ( fabs( dirVector.x ) > fabs( dirVector.y ) )
 		{
-			dir = dirVector.x > 0.0f ? EAST : WEST;
+			if ( dirVector.x > 0.0f ) // east
+			{
+				dir = EAST;
+			}
+			else // west
+			{
+				dir = WEST;
+			}
 		}
 		else
 		{
-			dir = dirVector.y > 0.0f ? SOUTH : NORTH;
+			if ( dirVector.y > 0.0f ) // south
+			{
+				dir = SOUTH;
+			}
+			else // north
+			{
+				dir = NORTH;
+			}
 		}
+
 		if ( m_dir == dir )
 		{
 			m_topBehindArea = area;
@@ -150,7 +174,9 @@ CNavLadder::~CNavLadder()
 	extern NavAreaVector TheNavAreas;
 	FOR_EACH_VEC( TheNavAreas, it )
 	{
-		TheNavAreas[ it ]->OnDestroyNotify( this );
+		CNavArea *area = TheNavAreas[ it ];
+
+		area->OnDestroyNotify( this );
 	}
 }
 
@@ -199,13 +225,25 @@ void CNavLadder::Disconnect( CNavArea *area )
  */
 bool CNavLadder::IsConnected( const CNavArea *area, LadderDirectionType dir ) const
 {
-	return (dir == LADDER_DOWN && area == m_bottomArea)
-			|| (dir == LADDER_UP
-					&& (area == m_topForwardArea || area == m_topLeftArea
-							|| area == m_topRightArea || area == m_topBehindArea))
-			|| area == m_bottomArea || area == m_topForwardArea
-			|| area == m_topLeftArea || area == m_topRightArea
-			|| area == m_topBehindArea;
+	if ( dir == LADDER_DOWN )
+	{
+		return area == m_bottomArea;
+	}
+	else if ( dir == LADDER_UP )
+	{
+		return ( area == m_topForwardArea ||
+			area == m_topLeftArea ||
+			area == m_topRightArea ||
+			area == m_topBehindArea );
+	}
+	else
+	{
+		return ( area == m_bottomArea ||
+			area == m_topForwardArea ||
+			area == m_topLeftArea ||
+			area == m_topRightArea ||
+			area == m_topBehindArea );
+	}
 }
 
 inline void UTIL_TraceLine(const Vector& vecAbsStart, const Vector& vecAbsEnd,
@@ -252,6 +290,9 @@ void CNavLadder::SetDir( NavDirType dir )
 
 void DrawAbsBoxOverlay(edict_t *edict)
 {
+	int red = 0;
+	int green = 200;
+
 	if (edict)
 	{
 		// Surrounding boxes are axially aligned, so ignore angles
@@ -259,7 +300,7 @@ void DrawAbsBoxOverlay(edict_t *edict)
 		edict->GetCollideable()->WorldSpaceSurroundingBounds( &vecSurroundMins, &vecSurroundMaxs );
 		Vector center = 0.5f * (vecSurroundMins + vecSurroundMaxs);
 		Vector extents = vecSurroundMaxs - center;
-		debugoverlay->AddBoxOverlay(center, -extents, extents, QAngle(0,0,0), 0, 200, 0, 0 ,0);
+		debugoverlay->AddBoxOverlay(center, -extents, extents, QAngle(0,0,0), red, green, 0, 0 ,0);
 	}
 }
 
@@ -274,7 +315,11 @@ void CNavLadder::DrawLadder( bool isSelected,  bool isMarked, bool isEdit ) cons
 
 	Vector eye;
 	gameclients->ClientEarPosition(ent, &eye);
-	Vector2D eyeDir(eye.x - m_bottom.x, eye.y - m_bottom.y);
+
+	float dx = eye.x - m_bottom.x;
+	float dy = eye.y - m_bottom.y;
+
+	Vector2D eyeDir( dx, dy );
 	eyeDir.NormalizeInPlace();
 	bool isFront = DotProduct2D( eyeDir, GetNormal().AsVector2D() ) > 0;
 
@@ -360,33 +405,38 @@ void CNavLadder::DrawLadder( bool isSelected,  bool isMarked, bool isEdit ) cons
 	// Draw connector lines ---------------------------------------------------
 	if ( !isEdit )
 	{
-		NavDrawLine( m_top, m_bottom, NavConnectedTwoWaysColor );
+		Vector bottom = m_bottom;
+		Vector top = m_top;
+
+		NavDrawLine( top, bottom, NavConnectedTwoWaysColor );
+
 		if (m_bottomArea)
 		{
+			float offset = GenerationStepSize;
 			const Vector& areaBottom = m_bottomArea->GetCenter();
-			NavDrawLine(
-					m_bottom + Vector(0, 0,
-							// don't draw the bottom connection too high if the ladder is very short
-							m_top.z - m_bottom.z < GenerationStepSize * 1.5f
-							// don't draw the bottom connection too high if the ladder is high above the area
-							|| m_bottom.z - areaBottom.z > GenerationStepSize * 1.5f ?
-									0.0f : GenerationStepSize),
-					areaBottom,
-					((m_bottomArea->IsConnected(this, LADDER_UP)) ?
-							NavConnectedTwoWaysColor : NavConnectedOneWayColor));
+
+			 // don't draw the bottom connection too high if the ladder is very short
+			if ( top.z - bottom.z < GenerationStepSize * 1.5f )
+				offset = 0.0f;
+
+			 // don't draw the bottom connection too high if the ladder is high above the area
+			if ( bottom.z - areaBottom.z > GenerationStepSize * 1.5f )
+				offset = 0.0f;
+
+			NavDrawLine( bottom + Vector( 0, 0, offset ), areaBottom, ((m_bottomArea->IsConnected( this, LADDER_UP ))?NavConnectedTwoWaysColor:NavConnectedOneWayColor) );
 		}
 
 		if (m_topForwardArea)
-			NavDrawLine( m_top, m_topForwardArea->GetCenter(), ((m_topForwardArea->IsConnected( this, LADDER_DOWN ))?NavConnectedTwoWaysColor:NavConnectedOneWayColor) );
+			NavDrawLine( top, m_topForwardArea->GetCenter(), ((m_topForwardArea->IsConnected( this, LADDER_DOWN ))?NavConnectedTwoWaysColor:NavConnectedOneWayColor) );
 
 		if (m_topLeftArea)
-			NavDrawLine( m_top, m_topLeftArea->GetCenter(), ((m_topLeftArea->IsConnected( this, LADDER_DOWN ))?NavConnectedTwoWaysColor:NavConnectedOneWayColor) );
+			NavDrawLine( top, m_topLeftArea->GetCenter(), ((m_topLeftArea->IsConnected( this, LADDER_DOWN ))?NavConnectedTwoWaysColor:NavConnectedOneWayColor) );
 
 		if (m_topRightArea)
-			NavDrawLine( m_top, m_topRightArea->GetCenter(), ((m_topRightArea->IsConnected( this, LADDER_DOWN ))?NavConnectedTwoWaysColor:NavConnectedOneWayColor) );
+			NavDrawLine( top, m_topRightArea->GetCenter(), ((m_topRightArea->IsConnected( this, LADDER_DOWN ))?NavConnectedTwoWaysColor:NavConnectedOneWayColor) );
 
 		if (m_topBehindArea)
-			NavDrawLine( m_top, m_topBehindArea->GetCenter(), ((m_topBehindArea->IsConnected( this, LADDER_DOWN ))?NavConnectedTwoWaysColor:NavConnectedOneWayColor) );
+			NavDrawLine( top, m_topBehindArea->GetCenter(), ((m_topBehindArea->IsConnected( this, LADDER_DOWN ))?NavConnectedTwoWaysColor:NavConnectedOneWayColor) );
 	}
 }
 
@@ -438,11 +488,12 @@ void CNavLadder::OnRoundRestart( void )
 	FindLadderEntity();
 }
 
+
 //--------------------------------------------------------------------------------------------------------------
 void CNavLadder::FindLadderEntity( void )
 {
 	CUtlLinkedList<edict_t*> ladder;
-	findEntWithSubStrInName("ladder", ladder);
+	findEntWithPatternInName("*ladder", ladder);
 	m_ladderEntity = ladder.Count() > 0 ? ladder[0]->GetIServerEntity(): nullptr;
 	edict_t *nearest = findNearestEntity(ladder,
 			(m_top + m_bottom) * 0.5f, HalfHumanWidth);
@@ -584,20 +635,20 @@ public:
 
 	bool operator() ( edict_t *ent )
 	{
-		if (ent == m_ignore || ent == nullptr
-				|| !BaseEntity(ent).isOnLadder())
+		if (ent == m_ignore)
 			return true;
 		IPlayerInfo* player = playerinfomanager->GetPlayerInfo(ent);
-		if (player == nullptr) {
+
+		if (!BasePlayer(ent).isOnLadder())
 			return true;
-		}
 		// player is on a ladder - is it this one?
 		const Vector &feet = player->GetAbsOrigin();
-		return feet.z > m_ladder->m_top.z + HalfHumanHeight
-				|| feet.z + HumanHeight < m_ladder->m_bottom.z - HalfHumanHeight
-				|| Vector2D(m_ladder->m_bottom.x - feet.x,
-						m_ladder->m_bottom.y - feet.y).IsLengthGreaterThan(
-						50.0f);
+		if (feet.z > m_ladder->m_top.z + HalfHumanHeight
+				|| feet.z + HumanHeight < m_ladder->m_bottom.z - HalfHumanHeight)
+			return true;
+		Vector2D away( m_ladder->m_bottom.x - feet.x, m_ladder->m_bottom.y - feet.y );
+		const float onLadderRange = 50.0f;
+		return away.IsLengthGreaterThan( onLadderRange );
 	}
 
 	const CNavLadder *m_ladder;
@@ -615,10 +666,9 @@ bool ForEachPlayer( Functor &func )
 {
 	for( int i=1; i<=playerinfomanager->GetGlobalVars()->maxClients; ++i )
 	{
-		extern IVEngineServer *engine;
 		edict_t *ent = engine->PEntityOfEntIndex(i);
 		IPlayerInfo* player = playerinfomanager->GetPlayerInfo(ent);
-		if (player == NULL || (!player->IsPlayer() && !player->IsConnected()))
+		if (player == NULL || !player->IsPlayer() && !player->IsConnected() )
 			continue;
 		if (!func( ent ))
 			return false;
@@ -657,43 +707,3 @@ Vector CNavLadder::GetPosAtHeight( float height ) const
 }
 
 //--------------------------------------------------------------------------------------------------------------
-
-void CNavLadder::adJustEnds(int mask) {
-	// adjust top and bottom of ladder to make sure they are reachable
-	// (cs_office has a crate right in front of the base of a ladder)
-	// adjust bottom to bypass blockages
-	findLadderEndPosition(m_bottom, mask, false);
-	// adjust top to bypass blockages
-	findLadderEndPosition(m_top, mask, true);
-	m_length = (m_top - m_bottom).Length();
-	SetDir(m_dir);// now that we've adjusted the top and bottom, re-check the normal
-}
-
-void CNavLadder::resetAreas(float maxHeightAboveTopArea) {
-	m_bottomArea = NULL;
-	m_topForwardArea = NULL;
-	m_topLeftArea = NULL;
-	m_topRightArea = NULL;
-	m_topBehindArea = NULL;
-	ConnectGeneratedLadder(maxHeightAboveTopArea);
-}
-
-void CNavLadder::findLadderEndPosition(Vector& end, int mask,
-		bool isTop) const {
-	Vector along = m_top - m_bottom;
-	float length = along.NormalizeInPlace();
-	const float minLadderClearance = 32.0f;
-	trace_t result;
-	// adjust bottom to bypass blockages
-	const float inc = 10.0f;
-	for (float t = 0.0f; t <= length; t += inc) {
-		Vector on = end + (isTop ? -t : t) * along;
-		Vector out = on + GetNormal() * minLadderClearance;
-		UTIL_TraceLine(on, out, mask, NULL, COLLISION_GROUP_NONE, &result);
-		if (result.fraction == 1.0f && !result.startsolid) {
-			// found viable ladder bottom
-			end = on;
-			break;
-		}
-	}
-}

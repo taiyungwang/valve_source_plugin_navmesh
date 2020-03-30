@@ -7,12 +7,17 @@
 #ifndef UTILS_VALVE_NAVMESH_UTIL_BASEENTITY_H_
 #define UTILS_VALVE_NAVMESH_UTIL_BASEENTITY_H_
 
-#include "EntityInstance.h"
+#include "EntityClass.h"
+#include "EntityVar.h"
 
+struct edict_t;
 
-class BaseEntity: public EntityInstance {
+class BaseEntity {
 public:
-	BaseEntity(edict_t *ent): EntityInstance(ent, "CBaseEntity") {
+	BaseEntity(edict_t* ent): BaseEntity("CBaseEntity", ent) {
+	}
+
+	virtual ~BaseEntity() {
 	}
 
 	int getTeam() {
@@ -23,8 +28,6 @@ public:
 		return get<int>("movetype") & 15;
 	}
 
-	bool isOnLadder();
-
 	unsigned char getRenderMode() {
 		return get<unsigned char>("m_nRenderMode");
 	}
@@ -34,6 +37,23 @@ public:
 	}
 
 	bool isDestroyedOrUsed();
+
+protected:
+	BaseEntity(const char* className, edict_t* ent);
+
+	EntityClass* classDef = nullptr;
+
+	edict_t* ent = nullptr;
+
+	template<typename T>
+	T get(const char* name) {
+		return classDef->getEntityVar(name).get<T>(ent);
+	}
+
+	template<typename T>
+	T *getPtr(const char* name) {
+		return classDef->getEntityVar(name).getPtr<T>(ent);
+	}
 };
 
 #endif /* UTILS_VALVE_NAVMESH_UTIL_BASEENTITY_H_ */

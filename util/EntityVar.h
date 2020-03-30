@@ -41,10 +41,11 @@ public:
 	edict_t* getEntity(edict_t* ent) const;
 
 private:
+	static CBaseEntity* getBaseEntity(edict_t* ent);
+
+	static void throwException(edict_t* ent);
 
 	int offset;
-
-	CBaseEntity* getBaseEntity(edict_t* ent) const;
 
 	template<typename T>
 	T *getVarPtr(CBaseEntity* ent) const {
@@ -53,7 +54,6 @@ private:
 				reinterpret_cast<T*>(reinterpret_cast<char *>(ent) + offset);
 	}
 
-	void throwException(edict_t* ent) const;
 
 };
 

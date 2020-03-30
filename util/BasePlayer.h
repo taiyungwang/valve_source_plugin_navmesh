@@ -1,11 +1,22 @@
 #pragma once
 
-#include "EntityInstance.h"
+#include "BaseEntity.h"
+#include <const.h>
 
-class BasePlayer: public EntityInstance {
+class BasePlayer: public BaseEntity {
 public:
-	BasePlayer(edict_t *ent) :
-			EntityInstance(ent, "CBasePlayer") {
+	BasePlayer(edict_t *ent): BasePlayer("CBasePlayer", ent) {
+	}
+
+	virtual ~BasePlayer() {
+	}
+
+	virtual int getPlayerClass() {
+		return -1;
+	}
+
+	virtual bool isOnLadder() {
+		return getMoveType() == MOVETYPE_LADDER;
 	}
 
 	int* getAmmo() {
@@ -26,5 +37,8 @@ public:
 
 	edict_t* getGroundEntity() {
 		return classDef->getEntityVar("m_hGroundEntity").getEntity(ent);
+	}
+protected:
+	BasePlayer(const char* className, edict_t* ent): BaseEntity(className, ent) {
 	}
 };

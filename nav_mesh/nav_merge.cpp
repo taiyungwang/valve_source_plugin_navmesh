@@ -7,15 +7,11 @@
 #include "fmtstr.h"
 #include "tier0/vprof.h"
 #include "utldict.h"
-#include <eiface.h>
-#include <iplayerinfo.h>
 #include <KeyValues.h>
 #include <filesystem.h>
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
-// the global singleton interface
-extern CNavMesh *TheNavMesh;
 extern IFileSystem *filesystem;
 
 //--------------------------------------------------------------------------------------------------------
@@ -98,7 +94,8 @@ private:
 				CNavArea *other = area->GetAdjacentArea( dir, i );
 				if ( other && TheNavMesh->IsInSelectedSet( other ) )
 				{
-					dirKey->SetInt( CFmtStrN<32>( "%d", i ).Access(), other->GetID() );
+					CFmtStrN<32> name( "%d", i );
+					dirKey->SetInt( name.Access(), other->GetID() );
 				}
 			}
 		}
@@ -199,18 +196,26 @@ void ReconnectMergedArea( CUtlDict< CNavArea *, int > &newAreas, KeyValues *area
 		Assert( false );
 		return;
 	}
+
+	CNavArea *area = newAreas[index];
+
 	KeyValues *dirKey = areaKey->FindKey( dirName, true );
 	if ( dirKey )
 	{
-		for ( KeyValues *connection = dirKey->GetFirstValue(); connection;
-				connection = connection->GetNextValue())
+		KeyValues *connection = dirKey->GetFirstValue();
+		while ( connection )
 		{
-			int otherIndex = newAreas.Find( connection->GetString() );
+			const char *otherID = connection->GetString();
+			int otherIndex = newAreas.Find( otherID );
 			Assert( otherIndex != newAreas.InvalidIndex() );
 			if ( otherIndex != newAreas.InvalidIndex() )
 			{
-				newAreas[index]->ConnectTo(  newAreas[otherIndex], dir );	// only a 1-way connection.  the other area will connect back to us.
+				CNavArea *other = newAreas[otherIndex];
+
+				area->ConnectTo( other, dir );	// only a 1-way connection.  the other area will connect back to us.
 			}
+
+			connection = connection->GetNextValue();
 		}
 	}
 }

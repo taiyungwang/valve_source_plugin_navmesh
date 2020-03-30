@@ -7,6 +7,7 @@
 #ifndef UTILS_VALVE_NAVMESH_UTIL_UTILTRACE_H_
 #define UTILS_VALVE_NAVMESH_UTIL_UTILTRACE_H_
 
+#include <utllinkedlist.h>
 #include <IEngineTrace.h>
 
 struct edict_t;
@@ -79,6 +80,26 @@ private:
 	unsigned int m_flags;
 };
 
+/**
+ * A filter that maintains a list of entities to ignore;
+ */
+class FilterList: public CTraceFilter {
+public:
+	virtual ~FilterList() {
+	}
+
+	/**
+	 * Adds a new entity to the list.  Null values are ignored.
+	 */
+	FilterList& add(edict_t* ignore);
+
+	virtual bool ShouldHitEntity(IHandleEntity *pHandleEntity,
+			int contentsMask);
+
+protected:
+	CUtlLinkedList<IHandleEntity*> ignore;
+};
+
 class FilterSelfAndTarget: public CTraceFilter {
 public:
 	// It does have a base, but we'll never network anything below here..
@@ -102,19 +123,14 @@ protected:
 };
 
 class FilterSelf: public FilterSelfAndTarget {
-private:
 public:
-	FilterSelf(const IHandleEntity *passentity1,
-			const IHandleEntity *passentity2) :
-			FilterSelfAndTarget(passentity1, passentity2) {
+	FilterSelf(const IHandleEntity *passentity1) :
+			FilterSelfAndTarget(passentity1, nullptr) {
 	}
 
 	// It does have a base, but we'll never network anything below here..
 	bool ShouldHitEntity(IHandleEntity *pHandleEntity, int contentsMask) {
-		if (pHandleEntity == m_pPassEnt1) {
-			return false;
-		}
-		return pHandleEntity == m_pPassEnt2;
+		return pHandleEntity != m_pPassEnt1;
 	}
 };
 
@@ -128,17 +144,25 @@ void UTIL_TraceLine(const Vector& vecAbsStart, const Vector& vecAbsEnd,
 		unsigned int mask, const IHandleEntity *ignore, int collisionGroup,
 		trace_t *ptr);
 
-void UTIL_TraceHull(const Vector &vecAbsStart, const Vector &vecAbsEnd,
-		const Vector &hullMin, const Vector &hullMax, unsigned int mask,
-		const IHandleEntity *ignore, int collisionGroup, trace_t *ptr);
+void UTIL_TraceHull(const Vector &vecAbsStart,
+		const Vector &vecAbsEnd,
+		const Vector &hullMin,
+		const Vector &hullMax,
+		unsigned int mask,
+		const ITraceFilter& Filter,
+		trace_t *ptr,
+		bool draw = false);
 
-void UTIL_TraceHull(const Vector &vecAbsStart, const Vector &vecAbsEnd,
-		const Vector &hullMin, const Vector &hullMax, unsigned int mask,
-		const ITraceFilter& Filter, trace_t *ptr);
+void UTIL_TraceHull(const Vector &vecAbsStart,
+		const Vector &vecAbsEnd,
+		const Vector &hullMin,
+		const Vector &hullMax,
+		unsigned int mask,
+		const IHandleEntity *ignore,
+		int collisionGroup,
+		trace_t *ptr,
+		bool draw = false);
 
 Vector UTIL_FindGround(const Vector& loc);
-
-bool UTIL_IsTargetHit(const Vector& start, const Vector& end, edict_t* self,
-		edict_t* target);
 
 #endif /* UTILS_VALVE_NAVMESH_UTIL_UTILTRACE_H_ */

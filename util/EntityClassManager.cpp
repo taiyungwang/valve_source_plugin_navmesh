@@ -23,11 +23,7 @@ EntityClassManager::EntityClassManager(IServerGameDLL *servergamedll) {
 }
 
 EntityClassManager::~EntityClassManager() {
-	FOR_EACH_MAP_FAST(classes, i) {
-		delete classes[i];
-		classes[i] = nullptr;
-	}
-	classes.RemoveAll();
+	classes.Purge();
 }
 
 EntityClass* EntityClassManager::getClass(const char* name) {

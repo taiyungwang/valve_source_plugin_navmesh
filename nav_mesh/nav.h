@@ -42,10 +42,8 @@ const float DeathDrop = 400.0f;					// (300) distance at which we will die if we
 #if defined(CSTRIKE_DLL)
 const float ClimbUpHeight = JumpCrouchHeight;	// CSBots assume all jump up links are reachable
 #else
-const float ClimbUpHeight = 200.0f;				// height to check for climbing up
+const float ClimbUpHeight = JumpCrouchHeight; //200.0f;				// height to check for climbing up
 #endif
-
-const float CliffHeight = 300.0f;				// height which we consider a significant cliff which we would not want to fall off of
 
 // TERROR: Converted these values to use the same numbers as the player bounding boxes etc
 #define HalfHumanWidth			16
@@ -94,7 +92,6 @@ enum NavAttributeType
 	NAV_MESH_STAIRS			= 0x00001000,				// this area represents stairs, do not attempt to climb or jump them - just walk up
 	NAV_MESH_NO_MERGE		= 0x00002000,				// don't merge this area with adjacent areas
 	NAV_MESH_OBSTACLE_TOP	= 0x00004000,				// this nav area is the climb point on the tip of an obstacle
-	NAV_MESH_CLIFF			= 0x00008000,				// this nav area is adjacent to a drop of at least CliffHeight
 
 	NAV_MESH_FIRST_CUSTOM	= 0x00010000,				// apps may define custom app-specific bits starting with this value
 	NAV_MESH_LAST_CUSTOM	= 0x04000000,				// apps must not define custom app-specific bits higher than with this value

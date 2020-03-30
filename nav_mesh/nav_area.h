@@ -14,6 +14,10 @@
 
 #include "nav_ladder.h"
 #include "CountDownTimer.h"
+#include <util/UtilTrace.h>
+#include <networkvar.h>
+#include <eiface.h>
+#include <iplayerinfo.h>
 #include <utlvector.h>
 #include <shareddefs.h>
 #include <platform.h>
@@ -37,6 +41,7 @@ class CFuncElevator;
 class CFuncNavPrerequisite;
 class CFuncNavCost;
 class KeyValues;
+class CNavLadder;
 class CUtlBuffer;
 class CNavArea;
 class CNavNode;
@@ -51,12 +56,7 @@ inline bool FStrEq(const char *sz1, const char *sz2)
 template < typename Functor >
 bool ForEachActor( Functor &func );
 
-/**
- * TODO:
- */
-static bool UTIL_IsCommandIssuedByServerAdmin() {
-	return true;
-}
+bool UTIL_IsCommandIssuedByServerAdmin();
 
 const char *UTIL_VarArgs( const char *format, ... );
 
@@ -157,10 +157,10 @@ public:
 		EXPOSED				= 0x08							// spot in the open, usually on a ledge or cliff
 	};
 
-	bool HasGoodCover( void ) const			{ return (m_flags & IN_COVER); }	// return true if hiding spot in in cover
-	bool IsGoodSniperSpot( void ) const		{ return (m_flags & GOOD_SNIPER_SPOT); }
-	bool IsIdealSniperSpot( void ) const	{ return (m_flags & IDEAL_SNIPER_SPOT); }
-	bool IsExposed( void ) const			{ return (m_flags & EXPOSED); }
+	bool HasGoodCover( void ) const			{ return (m_flags & IN_COVER) ? true : false; }	// return true if hiding spot in in cover
+	bool IsGoodSniperSpot( void ) const		{ return (m_flags & GOOD_SNIPER_SPOT) ? true : false; }
+	bool IsIdealSniperSpot( void ) const	{ return (m_flags & IDEAL_SNIPER_SPOT) ? true : false; }
+	bool IsExposed( void ) const			{ return (m_flags & EXPOSED) ? true : false; }	
 
 	int GetFlags( void ) const		{ return m_flags; }
 
@@ -173,7 +173,7 @@ public:
 	const CNavArea *GetArea( void ) const		{ return m_area; }	// return nav area this hiding spot is within
 
 	void Mark( void )							{ m_marker = m_masterMarker; }
-	bool IsMarked( void ) const					{ return (m_marker == m_masterMarker); }
+	bool IsMarked( void ) const					{ return (m_marker == m_masterMarker) ? true : false; }
 	static void ChangeMasterMarker( void )		{ ++m_masterMarker; }
 
 
@@ -284,15 +284,12 @@ protected:
 class CNavArea : protected CNavAreaCriticalData
 {
 public:
+	DECLARE_CLASS_NOBASE( CNavArea )
 
 	CNavArea( unsigned int place );
 	virtual ~CNavArea();
 	
-	virtual void OnServerActivate( void )						// (EXTEND) invoked when map is initially loaded
-	{
-		OnRoundRestart();
-	}
-
+	virtual void OnServerActivate( void );						// (EXTEND) invoked when map is initially loaded
 	virtual void OnRoundRestart( void );						// (EXTEND) invoked for each area when the round restarts
 	virtual void OnRoundRestartPreEntity( void ) { }			// invoked for each area when the round restarts, but before entities are deleted and recreated
 	virtual void OnEnter( edict_t *who, CNavArea *areaJustLeft ) { }	// invoked when player enters this area
@@ -329,7 +326,7 @@ public:
 
 	void SetAttributes( int bits )			{ m_attributeFlags = bits; }
 	int GetAttributes( void ) const			{ return m_attributeFlags; }
-	bool HasAttributes( int bits ) const	{ return ( m_attributeFlags & bits ); }
+	bool HasAttributes( int bits ) const	{ return ( m_attributeFlags & bits ) ? true : false; }
 	void RemoveAttributes( int bits )		{ m_attributeFlags &= ( ~bits ); }
 
 	void SetPlace( Place place )		{ m_place = place; }	// set place descriptor
@@ -357,20 +354,8 @@ public:
 	void ClearAllNavCostEntities( void );							// clear set of func_nav_cost entities that affect this area
 	void AddFuncNavCostEntity( CFuncNavCost *cost );				// add the given func_nav_cost entity to the cost of this area
 	float ComputeFuncNavCost( edict_t *who ) const;	// return the cost multiplier of this area's func_nav_cost entities for the given actor
-
 	bool HasFuncNavAvoid( void ) const;
-
 	bool HasFuncNavPrefer( void ) const;
-
-	void connectNodes(CNavNode* startNode, CNavNode* endNode, NavDirType thisNode,
-			NavDirType adjNode);
-
-	void connectToNodeWithoutArea(NavCornerType startNode, NavCornerType endNode, NavDirType thisNode,
-			NavDirType adjNode);
-
-	bool merge(CNavMesh* navMesh, NavDirType thisDir,
-			NavCornerType corner1, NavCornerType cornerOpp1, NavCornerType corner2,
-			NavCornerType cornerOpp2);
 
 	void CheckWaterLevel( void );
 	bool IsUnderwater( void ) const		{ return m_isUnderwater; }
@@ -423,7 +408,7 @@ public:
 	CFuncElevator *GetElevator( void ) const												{ Assert( !( m_attributeFlags & NAV_MESH_HAS_ELEVATOR ) == (m_elevator == NULL) ); return ( m_attributeFlags & NAV_MESH_HAS_ELEVATOR ) ? m_elevator : NULL; }
 	const NavConnectVector &GetElevatorAreas( void ) const									{ return m_elevatorAreas; }	// return collection of areas reachable via elevator from this area
 
-	float ComputePortal( const CNavArea *to, NavDirType dir, Vector *center) const;		// compute portal to adjacent area
+	void ComputePortal( const CNavArea *to, NavDirType dir, Vector *center, float *halfWidth ) const;		// compute portal to adjacent area
 	NavDirType ComputeLargestPortal( const CNavArea *to, Vector *center, float *halfWidth ) const;		// compute largest portal to adjacent area, returning direction
 	void ComputeClosestPointInPortal( const CNavArea *to, NavDirType dir, const Vector &fromPos, Vector *closePos ) const; // compute closest point within the "portal" between to adjacent areas
 	NavDirType ComputeDirection( Vector *point ) const;			// return direction from this area to the given point
@@ -471,7 +456,7 @@ public:
 	//- A* pathfinding algorithm ------------------------------------------------------------------------
 	static void MakeNewMarker( void )	{ ++m_masterMarker; if (m_masterMarker == 0) m_masterMarker = 1; }
 	void Mark( void )					{ m_marker = m_masterMarker; }
-	BOOL IsMarked( void ) const			{ return (m_marker == m_masterMarker); }
+	BOOL IsMarked( void ) const			{ return (m_marker == m_masterMarker) ? true : false; }
 	
 	void SetParent( CNavArea *parent, NavTraverseType how = NUM_TRAVERSE_TYPES )	{ m_parent = parent; m_parentHow = how; }
 	CNavArea *GetParent( void ) const	{ return m_parent; }
@@ -517,13 +502,8 @@ public:
 	void Shift( const Vector &shift );							// shift the nav area
 
 	//- ladders -----------------------------------------------------------------------------------------
-	void AddLadderUp(CNavLadder *ladder) {
-		addLadder(ladder, CNavLadder::LADDER_UP);
-	}
-
-	void AddLadderDown( CNavLadder *ladder ) {
-		addLadder(ladder, CNavLadder::LADDER_DOWN);
-	}
+	void AddLadderUp( CNavLadder *ladder );
+	void AddLadderDown( CNavLadder *ladder );
 
 	//- generation and analysis -------------------------------------------------------------------------
 	virtual void ComputeHidingSpots( void );					// analyze local area neighborhood to find "hiding spots" in this area - for map learning
@@ -566,76 +546,15 @@ public:
 		}
 	};
 
-	template<typename VisCheck>
-	bool checkVisibility( const CNavArea *viewedArea, VisCheck& check) const;
-
 	virtual bool IsEntirelyVisible( const Vector &eye, const edict_t *ignore = NULL ) const;				// return true if entire area is visible from given eyepoint (CPU intensive)
 	virtual bool IsPartiallyVisible( const Vector &eye, const edict_t *ignore = NULL ) const;				// return true if any portion of the area is visible from given eyepoint (CPU intensive)
 
-	static bool potentiallyVisible(const AreaBindInfo& info) {
-		return info.attributes != NOT_VISIBLE;
-	}
+	virtual bool IsPotentiallyVisible( const CNavArea *area ) const;		// return true if given area is potentially visible from somewhere in this area (very fast)
+	virtual bool IsPotentiallyVisibleToTeam( int team ) const;				// return true if any portion of this area is visible to anyone on the given team (very fast)
 
-	static bool notVisible(const AreaBindInfo& info) {
-		return info.attributes == NOT_VISIBLE;
-	}
+	virtual bool IsCompletelyVisible( const CNavArea *area ) const;			// return true if given area is completely visible from somewhere in this area (very fast)
+	virtual bool IsCompletelyVisibleToTeam( int team ) const;				// return true if given area is completely visible from somewhere in this area by someone on the team (very fast)
 
-	static bool completelyVisible(const AreaBindInfo& info) {
-		return (info.attributes & COMPLETELY_VISIBLE) == 0;
-	}
-
-	virtual bool IsPotentiallyVisible( const CNavArea *area ) const {
-		return checkVisibility(area, potentiallyVisible);// return true if given area is potentially visible from somewhere in this area (very fast)
-	}
-	// return true if any portion of this area is visible to anyone on the given team (very fast)
-	virtual bool IsPotentiallyVisibleToTeam( int team, const CNavArea* from ) const;
-
-	// return true if given area is completely visible from somewhere in this area (very fast)
-	virtual bool IsCompletelyVisible( const CNavArea *area ) const {
-		return checkVisibility(area, completelyVisible);
-	}
-
-	template<typename VisCheck>
-	bool checkTeamVisibility(int team, const CNavArea* from, VisCheck visCheck) const;
-
-	virtual bool IsCompletelyVisibleToTeam( int team, const CNavArea* from ) const;				// return true if given area is completely visible from somewhere in this area by someone on the team (very fast)
-
-	template<typename Functor1, typename Functor2>
-	bool checkAreaVisibility(Functor1& func1, Functor2& func2) {
-		++s_nCurrVisTestCounter;
-		int i;
-		for (i = 0; i < m_potentiallyVisibleAreas.Count(); ++i) {
-			CNavArea *area = m_potentiallyVisibleAreas[i].area;
-			if (!area)
-				continue;
-			// If this assertion triggers, an area is in here twice!
-			Assert(area->m_nVisTestCounter != s_nCurrVisTestCounter);
-			area->m_nVisTestCounter = s_nCurrVisTestCounter;
-			if (func1(m_potentiallyVisibleAreas[i].attributes))
-				continue;
-			if (!func2(area))
-				return false;
-		}
-		if (!m_inheritVisibilityFrom.area)
-			return true;
-		// for each inherited area
-		CAreaBindInfoArray &inherited =
-				m_inheritVisibilityFrom.area->m_potentiallyVisibleAreas;
-		for (i = 0; i < inherited.Count(); ++i) {
-			if (!inherited[i].area
-			// We may have visited this from m_potentiallyVisibleAreas
-					|| inherited[i].area->m_nVisTestCounter
-							== s_nCurrVisTestCounter)
-				continue;
-			// Theoretically, this shouldn't matter. But, just in case!
-			inherited[i].area->m_nVisTestCounter = s_nCurrVisTestCounter;
-			if (func1(inherited[i].attributes))
-				continue;
-			if (!func2(inherited[i].area))
-				return false;
-		}
-		return true;
-	}
 	//-------------------------------------------------------------------------------------
 	/**
 	 * Apply the functor to all navigation areas that are potentially
@@ -644,7 +563,53 @@ public:
 	template < typename Functor >
 	bool ForAllPotentiallyVisibleAreas( Functor &func )
 	{
-		return checkAreaVisibility(notVisible, func);
+		int i;
+
+		++s_nCurrVisTestCounter;
+
+		for ( i=0; i<m_potentiallyVisibleAreas.Count(); ++i )
+		{
+			CNavArea *area = m_potentiallyVisibleAreas[i].area;
+			if ( !area )
+				continue;
+
+			// If this assertion triggers, an area is in here twice!
+			Assert( area->m_nVisTestCounter != s_nCurrVisTestCounter );
+			area->m_nVisTestCounter = s_nCurrVisTestCounter;
+
+			if ( m_potentiallyVisibleAreas[i].attributes == NOT_VISIBLE )
+				continue;
+			
+			if ( func( area ) == false )
+				return false;
+		}
+
+		// for each inherited area
+		if ( !m_inheritVisibilityFrom.area )
+			return true;
+
+		CAreaBindInfoArray &inherited = m_inheritVisibilityFrom.area->m_potentiallyVisibleAreas;
+
+		for ( i=0; i<inherited.Count(); ++i )
+		{
+			if ( !inherited[i].area )
+				continue;
+
+			// We may have visited this from m_potentiallyVisibleAreas
+			if ( inherited[i].area->m_nVisTestCounter == s_nCurrVisTestCounter )
+				continue;
+
+			// Theoretically, this shouldn't matter. But, just in case!
+			inherited[i].area->m_nVisTestCounter = s_nCurrVisTestCounter;
+
+			if ( inherited[i].attributes == NOT_VISIBLE )
+				continue;
+
+			if ( func( inherited[i].area ) == false )
+				return false;
+		}
+
+		return true;
 	}
 
 	//-------------------------------------------------------------------------------------
@@ -655,7 +620,53 @@ public:
 	template < typename Functor >
 	bool ForAllCompletelyVisibleAreas( Functor &func )
 	{
-		return checkAreaVisibility(completelyVisible, func);
+		int i;
+
+		++s_nCurrVisTestCounter;
+
+		for ( i=0; i<m_potentiallyVisibleAreas.Count(); ++i )
+		{
+			CNavArea *area = m_potentiallyVisibleAreas[i].area;
+			if ( !area )
+				continue;
+
+			// If this assertion triggers, an area is in here twice!
+			Assert( area->m_nVisTestCounter != s_nCurrVisTestCounter );
+			area->m_nVisTestCounter = s_nCurrVisTestCounter;
+
+			if ( ( m_potentiallyVisibleAreas[i].attributes & COMPLETELY_VISIBLE ) == 0 )
+				continue;
+
+			if ( func( area ) == false )
+				return false;
+		}
+
+		if ( !m_inheritVisibilityFrom.area )
+			return true;
+
+		// for each inherited area
+		CAreaBindInfoArray &inherited = m_inheritVisibilityFrom.area->m_potentiallyVisibleAreas;
+
+		for ( i=0; i<inherited.Count(); ++i )
+		{
+			if ( !inherited[i].area )
+				continue;
+			
+			// We may have visited this from m_potentiallyVisibleAreas
+			if ( inherited[i].area->m_nVisTestCounter == s_nCurrVisTestCounter )
+				continue;
+
+			// Theoretically, this shouldn't matter. But, just in case!
+			inherited[i].area->m_nVisTestCounter = s_nCurrVisTestCounter;
+
+			if ( ( inherited[i].attributes & COMPLETELY_VISIBLE ) == 0 )
+				continue;
+
+			if ( func( inherited[i].area ) == false )
+				return false;
+		}
+
+		return true;
 	}
 
 
@@ -688,18 +699,6 @@ private:
 
 	CountdownTimer m_blockedTimer;								// Throttle checks on our blocked state while blocked
 	void UpdateBlockedFromNavBlockers( void );					// checks if nav blockers are still blocking the area
-
-	void addLadder(CNavLadder* ladder, CNavLadder::LadderDirectionType dir);
-
-	bool connectNewArea(CNavArea *other, NavDirType dir, const Vector& nw,
-			const Vector& ne, const Vector& se, const Vector& sw);
-
-	void build();
-
-	void buildFromNodes();
-
-	template<typename T>
-	bool HasFunc(void) const;
 
 	bool m_isUnderwater;										// true if the center of the area is underwater
 
@@ -756,7 +755,6 @@ private:
 
 	void CalcDebugID();
 
-	bool isOnDisplacement() const;
 #ifdef NEXT_BOT
 	CUtlVector< CHandle< CFuncNavPrerequisite > > m_prerequisiteVector;		// list of prerequisites that must be met before this area can be traversed
 #endif
@@ -784,10 +782,6 @@ private:
 	bool m_isInheritedFrom;										// latch used during visibility inheritance computation
 
 	const CAreaBindInfoArray &ComputeVisibilityDelta( const CNavArea *other ) const;	// return a list of the delta between our visibility list and the given adjacent area
-
-	template<typename IsFound, typename UpdateDelta>
-	void ComputeVisibilityDelta(const IsFound& isFound, const UpdateDelta& func,
-			CAreaBindInfoArray& delta, const CNavArea *other) const;
 
 	uint32 m_nVisTestCounter;
 	static uint32 s_nCurrVisTestCounter;
@@ -848,22 +842,24 @@ inline bool CNavArea::IsDegenerate( void ) const
 }
 
 //--------------------------------------------------------------------------------------------------------------
-inline CNavArea *CNavArea::GetAdjacentArea(NavDirType dir, int i) const {
-	return i < 0 || i >= m_connect[dir].Count() ?
-			nullptr : m_connect[dir][i].area;
+inline CNavArea *CNavArea::GetAdjacentArea( NavDirType dir, int i ) const
+{
+	if ( ( i < 0 ) || ( i >= m_connect[dir].Count() ) )
+		return NULL;
+	return m_connect[dir][i].area;
 }
 
 //--------------------------------------------------------------------------------------------------------------
 inline bool CNavArea::IsOpen( void ) const
 {
-	return m_openMarker == m_masterMarker;
+	return (m_openMarker == m_masterMarker) ? true : false;
 }
 
 //--------------------------------------------------------------------------------------------------------------
 inline bool CNavArea::IsOpenListEmpty( void )
 {
 	Assert( (m_openList && m_openList->m_prevOpen == NULL) || m_openList == NULL );
-	return m_openList == nullptr;
+	return (m_openList) ? false : true;
 }
 
 //--------------------------------------------------------------------------------------------------------------
@@ -893,7 +889,10 @@ inline CNavArea *CNavArea::PopOpenList( void )
 //--------------------------------------------------------------------------------------------------------------
 inline bool CNavArea::IsClosed( void ) const
 {
-	return IsMarked() && !IsOpen();
+	if (IsMarked() && !IsOpen())
+		return true;
+
+	return false;
 }
 
 //--------------------------------------------------------------------------------------------------------------
@@ -909,6 +908,13 @@ inline void CNavArea::RemoveFromClosedList( void )
 }
 
 //--------------------------------------------------------------------------------------------------------------
+inline void CNavArea::SetClearedTimestamp( int teamID )
+{
+	extern IPlayerInfoManager* playerinfomanager;
+	m_clearedTimestamp[ teamID % MAX_NAV_TEAMS ] = playerinfomanager->GetGlobalVars()->curtime;
+}
+
+//--------------------------------------------------------------------------------------------------------------
 inline float CNavArea::GetClearedTimestamp( int teamID ) const
 { 
 	return m_clearedTimestamp[ teamID % MAX_NAV_TEAMS ];
@@ -919,6 +925,25 @@ inline float CNavArea::GetEarliestOccupyTime( int teamID ) const
 {
 	return m_earliestOccupyTime[ teamID % MAX_NAV_TEAMS ];
 }
+
+
+//--------------------------------------------------------------------------------------------------------------
+inline bool CNavArea::IsDamaging( void ) const
+{
+	extern IPlayerInfoManager* playerinfomanager;
+	return ( playerinfomanager->GetGlobalVars()->tickcount <= m_damagingTickCount );
+}
+
+
+//--------------------------------------------------------------------------------------------------------------
+inline void CNavArea::MarkAsDamaging( float duration )
+{
+	extern IPlayerInfoManager* playerinfomanager;
+	CGlobalVars *gpGlobals = playerinfomanager->GetGlobalVars();
+	m_damagingTickCount = gpGlobals->tickcount
+			+ TIME_TO_TICKS(duration);
+}
+
 
 //--------------------------------------------------------------------------------------------------------------
 inline bool CNavArea::HasAvoidanceObstacle( float maxObstructionHeight ) const
@@ -933,6 +958,44 @@ inline float CNavArea::GetAvoidanceObstacleHeight( void ) const
 	return m_avoidanceObstacleHeight;
 }
 
+
+//--------------------------------------------------------------------------------------------------------------
+inline bool CNavArea::IsVisible( const Vector &eye, Vector *visSpot ) const
+{
+	Vector corner;
+	trace_t result;
+	CTraceFilterNoNPCsOrPlayer traceFilter( NULL, COLLISION_GROUP_NONE );
+	const float offset = 0.75f * HumanHeight;
+
+	// check center first
+	UTIL_TraceLine( eye, GetCenter() + Vector( 0, 0, offset ), MASK_BLOCKLOS_AND_NPCS|CONTENTS_IGNORE_NODRAW_OPAQUE, &traceFilter, &result );
+	if (result.fraction == 1.0f)
+	{
+		// we can see this area
+		if (visSpot)
+		{
+			*visSpot = GetCenter();
+		}
+		return true;
+	}
+
+	for( int c=0; c<NUM_CORNERS; ++c )
+	{
+		corner = GetCorner( (NavCornerType)c );
+		UTIL_TraceLine( eye, corner + Vector( 0, 0, offset ), MASK_BLOCKLOS_AND_NPCS|CONTENTS_IGNORE_NODRAW_OPAQUE, &traceFilter, &result );
+		if (result.fraction == 1.0f)
+		{
+			// we can see this area
+			if (visSpot)
+			{
+				*visSpot = corner;
+			}
+			return true;
+		}
+	}
+
+	return false;
+}
 
 #ifndef DEBUG_AREA_PLAYERCOUNTS
 inline void CNavArea::IncrementPlayerCount( int teamID, int entIndex )

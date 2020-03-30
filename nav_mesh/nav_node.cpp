@@ -11,11 +11,10 @@
 
 #include "nav_node.h"
 
-#include "nav.h"
 #include "nav_colors.h"
 #include "nav_mesh.h"
+#include "nav.h"
 #include <util/EntityUtils.h>
-#include <util/UtilTrace.h>
 #include "tier1/utlhash.h"
 #include "tier1/generichash.h"
 #include <eiface.h>
@@ -24,15 +23,12 @@
 // NOTE: This has to be the last file included!
 #include "tier0/memdbgon.h"
 
-
 NavDirType Opposite[ NUM_DIRECTIONS ] = { SOUTH, WEST, NORTH, EAST };
 
 CNavNode *CNavNode::m_list = NULL;
 unsigned int CNavNode::m_listLength = 0;
 unsigned int CNavNode::m_nextID = 1;
 
-// the global singleton interface
-extern CNavMesh *TheNavMesh;
 extern Vector NavTraceMins;
 extern Vector NavTraceMaxs;
 extern IVDebugOverlay* debugoverlay;
@@ -193,15 +189,22 @@ void Text(const Vector &origin, const char *text, bool bViewCheck,
 	IPlayerInfo* player = playerinfomanager->GetPlayerInfo(ent);
 	if (!player)
 		return;
+	const unsigned int MAX_OVERLAY_DIST_SQR	= 90000000;
+
 	// Clip text that is far away
-	if ((player->GetAbsOrigin() - origin).LengthSqr() > 90000000)
+	if ((player->GetAbsOrigin() - origin).LengthSqr() > MAX_OVERLAY_DIST_SQR)
 		return;
 	extern IServerGameClients* gameclients;
 	// Clip text that is behind the client
 	Vector clientForward;
 	gameclients->ClientEarPosition(ent, &clientForward);
 	AngleVectors( player->GetAbsAngles(), &clientForward, nullptr, nullptr );
-	if (DotProduct(clientForward, origin - player->GetAbsOrigin()) < 0)
+
+
+	Vector toText = origin - player->GetAbsOrigin();
+	float dotPr = DotProduct(clientForward, toText);
+
+	if (dotPr < 0)
 		return;
 
 	// Clip text that is obscured
@@ -231,7 +234,14 @@ void CNavNode::Draw( void )
 
 	if ( m_isCovered )
 	{
-		((GetAttributes() & NAV_MESH_CROUCH ) ? b : r) = 255;
+		if ( GetAttributes() & NAV_MESH_CROUCH )
+		{
+			b = 255;
+		}
+		else
+		{
+			r = 255;
+		}
 	}
 	else
 	{
@@ -493,7 +503,9 @@ CNavNode *CNavNode::GetNode( const Vector &pos )
 		{
 			for( pNode = g_pNavNodeHash->Element( hNode ); pNode; pNode = pNode->m_nextAtXY )
 			{
-				if (fabs( pNode->m_pos.z - pos.z ) < tolerance)
+				float dz = fabs( pNode->m_pos.z - pos.z );
+
+				if (dz < tolerance)
 				{
 					break;
 				}
@@ -528,7 +540,12 @@ CNavNode *CNavNode::GetNode( const Vector &pos )
  */
 BOOL CNavNode::IsBiLinked( NavDirType dir ) const
 {
-	return m_to[ dir ] && m_to[ dir ]->m_to[ Opposite[dir] ] == this;
+	if (m_to[ dir ] && m_to[ dir ]->m_to[ Opposite[dir] ] == this)
+	{
+		return true;
+	}
+
+	return false;
 }
 
 //--------------------------------------------------------------------------------------------------------------
@@ -538,10 +555,15 @@ BOOL CNavNode::IsBiLinked( NavDirType dir ) const
  */
 BOOL CNavNode::IsClosedCell( void ) const
 {
-	return IsBiLinked( SOUTH ) &&
+	if (IsBiLinked( SOUTH ) &&
 		IsBiLinked( EAST ) &&
 		m_to[ EAST ]->IsBiLinked( SOUTH ) &&
 		m_to[ SOUTH ]->IsBiLinked( EAST ) &&
-		m_to[ EAST ]->m_to[ SOUTH ] == m_to[ SOUTH ]->m_to[ EAST ];
+		m_to[ EAST ]->m_to[ SOUTH ] == m_to[ SOUTH ]->m_to[ EAST ])
+	{
+		return true;
+	}
+
+	return false;
 }
 

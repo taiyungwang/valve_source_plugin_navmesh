@@ -5,7 +5,7 @@
 #include <eiface.h>
 #include <edict.h>
 
-CBaseEntity* EntityVar::getBaseEntity(edict_t* ent) const {
+CBaseEntity* EntityVar::getBaseEntity(edict_t* ent) {
 	if (ent == nullptr) {
 		return nullptr;
 	}
@@ -20,7 +20,7 @@ edict_t* EntityVar::getEntity(edict_t* ent) const {
 			nullptr : engine->PEntityOfEntIndex(out->GetEntryIndex());
 }
 
-void EntityVar::throwException(edict_t* ent) const {
+void EntityVar::throwException(edict_t* ent) {
 	throw SimpleException(CUtlString("Unable to retrieve entity value with class name, ")
 			+ ent->GetClassName() + ".\n");
 }

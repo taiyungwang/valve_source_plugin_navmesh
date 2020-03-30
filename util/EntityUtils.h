@@ -33,9 +33,15 @@ enum BrushSolidities_e {
 edict_t * findNearestEntity(const CUtlLinkedList<edict_t*>& entities, const Vector& pos,
 		float maxRadius = 0.0f);
 
-edict_t * findEntWithSubStrInNetClassName(const char* name);
+/**
+ * Find all entities with the given class name.
+ */
+void findEntWithMatchingName(const char* name, CUtlLinkedList<edict_t*>& result);
 
-void findEntWithSubStrInName(const char* name, CUtlLinkedList<edict_t*>& result);
+/**
+ * Find all entities with class name with glob pattern
+ */
+void findEntWithPatternInName(const char* name, CUtlLinkedList<edict_t*>& result);
 
 /**
  * Return true if given entity can be ignored when moving

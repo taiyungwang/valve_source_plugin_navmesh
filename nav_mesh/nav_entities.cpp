@@ -11,9 +11,6 @@
 
 #include "nav_entities.h"
 
-
-#include "nav_area.h"
-#include "nav_mesh.h"
 #include <util/UtilTrace.h>
 #include <eiface.h>
 #include <iplayerinfo.h>
@@ -22,11 +19,12 @@
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
-
 // the global singleton interface
 extern CNavMesh *TheNavMesh;
 extern IPlayerInfoManager* playerinfomanager;
 extern NavAreaVector TheNavAreas;
+extern IVDebugOverlay* debugoverlay;
+
 //--------------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------
 
@@ -35,19 +33,10 @@ CountdownTimer CFuncNavCost::gm_dirtyTimer;
 
 #define UPDATE_DIRTY_TIME 0.2f
 
-void CFuncNavCost::SetCollisionGroup( int collisionGroup )
-{
-	if ( (int)m_CollisionGroup != collisionGroup )
-	{
-		m_CollisionGroup = collisionGroup;
-		// TODO: CollisionRulesChanged();
-	}
-}
-
 //--------------------------------------------------------------------------------------------------------
-void CFuncNavCost::Spawn( void )
+CFuncNavCost::CFuncNavCost( edict_t* pEnt ): NavEntity(pEnt), m_isDisabled(true),
+		m_team(0)
 {
-
 	gm_masterCostVector.AddToTail( this );
 	gm_dirtyTimer.Start( UPDATE_DIRTY_TIME );
 /**TODO
@@ -94,7 +83,7 @@ void CFuncNavCost::UpdateOnRemove( void )
 
 
 //--------------------------------------------------------------------------------------------------------
-void CFuncNavCost::InputEnable( inputdata_t &inputdata )
+void CFuncNavCost::InputEnable( )
 {
 	m_isDisabled = false;
 	gm_dirtyTimer.Start( UPDATE_DIRTY_TIME );
@@ -102,7 +91,7 @@ void CFuncNavCost::InputEnable( inputdata_t &inputdata )
 
 
 //--------------------------------------------------------------------------------------------------------
-void CFuncNavCost::InputDisable( inputdata_t &inputdata )
+void CFuncNavCost::InputDisable( )
 {
 	m_isDisabled = true;
 	gm_dirtyTimer.Start( UPDATE_DIRTY_TIME );
@@ -129,7 +118,7 @@ bool CFuncNavCost::HasTag( const char *groupname ) const
 {
 	for( int i=0; i<m_tags.Count(); ++i )
 	{
-		if ( FStrEq( m_tags[i], groupname ) )
+		if ( strcmp( m_tags[i], groupname ) == 0)
 		{
 			return true;
 		}
@@ -143,12 +132,7 @@ bool CFuncNavCost::HasTag( const char *groupname ) const
 // Return true if this cost applies to the given actor
 bool CFuncNavCost::IsApplicableTo( edict_t *who ) const
 {
-	if ( !who )
-	{
-		return false;
-	}
-
-	if ( m_team > 0 && playerinfomanager->GetPlayerInfo(who)->GetTeamIndex() != m_team ) {
+	if ( !who || ( m_team > 0 && playerinfomanager->GetPlayerInfo(who)->GetTeamIndex() != m_team )) {
 		return false;
 	}
 
@@ -246,16 +230,14 @@ bool CFuncNavCost::IsApplicableTo( edict_t *who ) const
 // This is required to handle overlapping func_nav_cost entities.
 void CFuncNavCost::UpdateAllNavCostDecoration( CNavMesh* TheNavMesh )
 {
-	int i, j;
-
 	// first, clear all avoid decoration from the mesh
-	for( i=0; i<TheNavAreas.Count(); ++i )
+	for(int i=0; i<TheNavAreas.Count(); ++i )
 	{
 		TheNavAreas[i]->ClearAllNavCostEntities();
 	}
 
 	// now, mark all areas with active cost entities overlapping them
-	for( i=0; i<gm_masterCostVector.Count(); ++i )
+	for(int i=0; i<gm_masterCostVector.Count(); ++i )
 	{
 		CFuncNavCost *cost = gm_masterCostVector[i];
 
@@ -272,13 +254,11 @@ void CFuncNavCost::UpdateAllNavCostDecoration( CNavMesh* TheNavMesh )
 
 		Ray_t ray;
 		trace_t tr;
-		ICollideable *pCollide = pEnt->GetCollideable();
-
-		for( j=0; j<overlapVector.Count(); ++j )
+		for( int j=0; j<overlapVector.Count(); ++j )
 		{
 			ray.Init( overlapVector[j]->GetCenter(), overlapVector[j]->GetCenter() );
 			extern IEngineTrace *enginetrace;
-			enginetrace->ClipRayToCollideable( ray, MASK_ALL, pCollide, &tr );
+			enginetrace->ClipRayToCollideable( ray, MASK_ALL, pEnt->GetCollideable(), &tr );
 			
 			if ( tr.startsolid )
 			{
@@ -322,56 +302,93 @@ inline bool CFuncNavBlocker::IsBlockingNav( int teamNumber ) const
 
 		return isBlocked;
 	}
-
-	teamNumber = teamNumber % MAX_NAV_TEAMS;
-	return m_isBlockingNav[ teamNumber ];
+	return m_isBlockingNav[teamNumber % MAX_NAV_TEAMS];
 }
 
+//------------------------------------------------------------------------------
+// Purpose : Add new entity positioned overlay text
+// Input   : How many lines to offset text from origin
+//			 The text to print
+//			 How long to display text
+//			 The color of the text
+// Output  :
+//------------------------------------------------------------------------------
+void EntityText(ICollideable* collision, int text_offset, const char *text, float flDuration, int r = 255, int g = 255, int b = 255, int a = 255)
+{
+	if (collision == nullptr) {
+		return;
+	}
+	Vector origin;
+	Vector vecLocalCenter;
+	Vector mins, maxs;
+	collision->WorldSpaceSurroundingBounds(&mins, &maxs);
+	VectorAdd(mins, maxs, vecLocalCenter);
+	vecLocalCenter *= 0.5f;
+
+	if ((collision->GetCollisionAngles() == vec3_angle) || (vecLocalCenter == vec3_origin))
+	{
+		VectorAdd(vecLocalCenter, collision->GetCollisionOrigin(), origin);
+	}
+	else
+	{
+		VectorTransform(vecLocalCenter, collision->CollisionToWorldTransform(), origin);
+	}
+	debugoverlay->AddTextOverlayRGB(origin, text_offset, NDEBUG_PERSIST_TILL_NEXT_SERVER, r, g, b, a, "%s", text);
+}
+
+int NavEntity::DrawDebugTextOverlays() {
+	int offset = 1;
+	char tempstr[512];
+	extern IVEngineServer* engine;
+	Q_snprintf(tempstr, sizeof(tempstr), "(%d) Name: %s", engine->IndexOfEdict(pEnt), pEnt->GetClassName());
+	EntityText(pEnt->GetCollideable(), offset, tempstr, 0);
+	offset++;
+	auto serverEnt = pEnt->GetIServerEntity();
+	if (serverEnt != nullptr) {
+		auto modelName = serverEnt->GetModelName();
+		if (modelName != NULL_STRING)
+		{
+			Q_snprintf(tempstr, sizeof(tempstr), "Model:%s", STRING(modelName));
+			EntityText(pEnt->GetCollideable(), offset, tempstr, 0);
+			offset++;
+		}
+	}
+	Vector vecOrigin = pEnt->GetCollideable()->GetCollisionOrigin();
+	Q_snprintf(tempstr, sizeof(tempstr), "Position: %0.1f, %0.1f, %0.1f\n", vecOrigin.x, vecOrigin.y, vecOrigin.z);
+	EntityText(pEnt->GetCollideable(), offset, tempstr, 0);
+	offset++;
+
+	// TODO: Cross3D(EyePosition(), 16, 255, 0, 0, true, 0.05f);
+
+	return offset;
+}
 //-----------------------------------------------------------------------------------------------------
 int CFuncNavBlocker::DrawDebugTextOverlays( void )
 {
-	int offset = 0;
-	/**
-	 * TODO
-	int offset = BaseClass::DrawDebugTextOverlays();
+	int offset = NavEntity::DrawDebugTextOverlays();
+	CFmtStr str;
 
-	if (debugOverlay & OVERLAY_TEXT_BIT)
+	// FIRST_GAME_TEAM skips TEAM_SPECTATOR and TEAM_UNASSIGNED, so we can print
+	// useful team names in a non-game-specific fashion.
+	for ( int i=FIRST_GAME_TEAM; i<FIRST_GAME_TEAM + MAX_NAV_TEAMS; ++i )
 	{
-		CFmtStr str;
-
-		// FIRST_GAME_TEAM skips TEAM_SPECTATOR and TEAM_UNASSIGNED, so we can print
-		// useful team names in a non-game-specific fashion.
-		for ( int i=FIRST_GAME_TEAM; i<FIRST_GAME_TEAM + MAX_NAV_TEAMS; ++i )
-		{
-			if ( IsBlockingNav( i ) )
-			{
-				CTeam *team = GetGlobalTeam( i );
-				if ( team )
-				{
-					EntityText( offset++, str.sprintf( "blocking team %s", team->GetName() ), 0 );
-				}
-				else
-				{
-					EntityText( offset++, str.sprintf( "blocking team %d", i ), 0 );
-				}
-			}
-		}
-
-		NavAreaCollector collector( true );
-		Extent extent;
-		extent.Init( this->pEnt );
-		TheNavMesh->ForAllAreasOverlappingExtent( collector, extent );
-
-		for ( int i=0; i<collector.m_area.Count(); ++i )
-		{
-			CNavArea *area = collector.m_area[i];
-			Extent areaExtent;
-			area->GetExtent( &areaExtent );
-			debugoverlay->AddBoxOverlay( vec3_origin, areaExtent.lo, areaExtent.hi, vec3_angle, 0, 255, 0, 10, NDEBUG_PERSIST_TILL_NEXT_SERVER );
+		if ( IsBlockingNav( i ) )
+		{		
+			EntityText( pEnt->GetCollideable(), offset++, str.sprintf( "blocking team %d", i ), 0 );
 		}
 	}
-	 */
 
+	NavAreaCollector collector( true );
+	Extent extent;
+	extent.Init( this->pEnt );
+	TheNavMesh->ForAllAreasOverlappingExtent( collector, extent );
+
+	for ( int i=0; i<collector.m_area.Count(); ++i )
+	{
+		Extent areaExtent;
+		collector.m_area[i]->GetExtent( &areaExtent );
+		debugoverlay->AddBoxOverlay( vec3_origin, areaExtent.lo, areaExtent.hi, vec3_angle, 0, 255, 0, 10, NDEBUG_PERSIST_TILL_NEXT_SERVER );
+	}
 	return offset;
 }
 
@@ -381,13 +398,13 @@ void CFuncNavBlocker::UpdateBlocked()
 {
 	NavAreaCollector collector( true );
 	Extent extent;
-	extent.Init( this->pEnt );
+	extent.lo = m_CachedMins;
+	extent.hi = m_CachedMaxs;
 	TheNavMesh->ForAllAreasOverlappingExtent( collector, extent );
 
 	for ( int i=0; i<collector.m_area.Count(); ++i )
 	{
-		CNavArea *area = collector.m_area[i];
-		area->UpdateBlocked( true );
+		collector.m_area[i]->UpdateBlocked( true );
 	}
 
 }
@@ -404,9 +421,9 @@ void CFuncNavBlocker::UpdateOnRemove( void )
 	// TODO: BaseClass::UpdateOnRemove();
 }
 
-
 //--------------------------------------------------------------------------------------------------------
-void CFuncNavBlocker::Spawn( void )
+CFuncNavBlocker::CFuncNavBlocker( edict_t* pEnt ) : NavEntity(pEnt),
+		m_bDisabled(false), m_blockedTeamNumber(0)
 {
 	gm_NavBlockers.AddToTail( this );
 
@@ -421,9 +438,9 @@ void CFuncNavBlocker::Spawn( void )
 	SetCollisionGroup( COLLISION_GROUP_NONE );
 	SetSolid( SOLID_NONE );
 	AddSolidFlags( FSOLID_NOT_SOLID );
-	CollisionProp()->WorldSpaceAABB( &m_CachedMins, &m_CachedMaxs );
-	 */
-
+	*/
+	pEnt->GetCollideable()->WorldSpaceSurroundingBounds( &m_CachedMins, &m_CachedMaxs );
+	/*
 	if ( m_bDisabled )
 	{
 		UnblockNav();
@@ -432,41 +449,28 @@ void CFuncNavBlocker::Spawn( void )
 	{
 		BlockNav();
 	}
+	*/
 }
-
-
-//--------------------------------------------------------------------------------------------------------
-void CFuncNavBlocker::InputBlockNav( inputdata_t &inputdata )
-{
-	BlockNav();
-}
-
-
-//--------------------------------------------------------------------------------------------------------
-void CFuncNavBlocker::InputUnblockNav( inputdata_t &inputdata )
-{
-	UnblockNav();
-}
-
 
 //--------------------------------------------------------------------------------------------------------
 void CFuncNavBlocker::BlockNav( void )
 {
-	toggleBlock(true);
+	setBlockedTeam(true);
 	Extent extent;
-	extent.Init( this->pEnt );
-	TheNavMesh->ForAllAreasOverlappingExtent( *this, extent );
+	extent.lo = m_CachedMins;
+	extent.hi = m_CachedMaxs;
+	TheNavMesh->ForAllAreasOverlappingExtent<CFuncNavBlocker>( *this, extent );
 }
 
 
 //--------------------------------------------------------------------------------------------------------
 void CFuncNavBlocker::UnblockNav( void )
 {
-	toggleBlock(false);
+	setBlockedTeam(false);
 	UpdateBlocked();
 }
 
-void CFuncNavBlocker::toggleBlock(bool block) {
+void CFuncNavBlocker::setBlockedTeam(bool block) {
 	if ( m_blockedTeamNumber == TEAM_ANY )
 	{
 		for ( int i=0; i<MAX_NAV_TEAMS; ++i )
@@ -482,9 +486,9 @@ void CFuncNavBlocker::toggleBlock(bool block) {
 
 //--------------------------------------------------------------------------------------------------------
 // functor that blocks areas in our extent
-bool CFuncNavBlocker::operator()( CNavArea *area )
+bool CFuncNavBlocker::operator()( CNavArea *area ) const
 {
-	area->MarkAsBlocked( m_blockedTeamNumber, this->pEnt );
+	area->MarkAsBlocked( m_blockedTeamNumber, pEnt, false );
 	return true;
 }
 
@@ -525,74 +529,18 @@ bool CFuncNavBlocker::CalculateBlocked( bool *pResultByTeam, const Vector &vecMi
 	return bBlocked;
 }
 
-
-//-----------------------------------------------------------------------------------------------------
-/**
-  * An entity that can obstruct nav areas.  This is meant for semi-transient areas that obstruct
-  * pathfinding but can be ignored for longer-term queries like computing L4D flow distances and
-  * escape routes.
-  */
-class CFuncNavObstruction :  public INavAvoidanceObstacle
-{
-
-public:
-	CFuncNavObstruction(edict_t* pEnt): pEnt(pEnt) {
-
-	}
-	void Spawn();
-	virtual void UpdateOnRemove( void );
-
-	void InputEnable( inputdata_t &inputdata );
-	void InputDisable( inputdata_t &inputdata );
-
-	virtual bool IsPotentiallyAbleToObstructNavAreas( void ) const { return true; }		// could we at some future time obstruct nav?
-	virtual float GetNavObstructionHeight( void ) const { return JumpCrouchHeight; }	// height at which to obstruct nav areas
-	virtual bool CanObstructNavAreas( void ) const { return !m_bDisabled; }				// can we obstruct nav right this instant?
-	virtual edict_t *GetObstructingEntity( void ) { return this->pEnt; }
-	virtual void OnNavMeshLoaded( void )
-	{
-		if ( !m_bDisabled )
-		{
-			ObstructNavAreas();
-		}
-	}
-
-	int DrawDebugTextOverlays( void );
-
-	bool operator()( CNavArea *area );	// functor that obstructs areas in our extent
-
-private:
-	edict_t* pEnt;
-	void ObstructNavAreas( void );
-	bool m_bDisabled;
-};
-
-
-
 //-----------------------------------------------------------------------------------------------------
 int CFuncNavObstruction::DrawDebugTextOverlays( void )
 {
-	/**
-	 * TODO
-	int offset = BaseClass::DrawDebugTextOverlays();
-
-	if (m_debugOverlays & OVERLAY_TEXT_BIT) 
-	{
-		if ( CanObstructNavAreas() )
-		{
-			EntityText( offset++, "Obstructing nav", NDEBUG_PERSIST_TILL_NEXT_SERVER );
-		}
-		else
-		{
-			EntityText( offset++, "Not obstructing nav", NDEBUG_PERSIST_TILL_NEXT_SERVER );
-		}
-	}
-
+	int offset = NavEntity::DrawDebugTextOverlays();
+	EntityText(pEnt->GetCollideable(), offset++, CanObstructNavAreas() ? "Obstructing nav" : "Not obstructing nav",
+		NDEBUG_PERSIST_TILL_NEXT_SERVER);
 	return offset;
-	 */
-	return 0;
 }
 
+float CFuncNavObstruction::GetNavObstructionHeight(void) const {
+	return JumpCrouchHeight;
+}
 
 //--------------------------------------------------------------------------------------------------------
 void CFuncNavObstruction::UpdateOnRemove( void )
@@ -604,7 +552,7 @@ void CFuncNavObstruction::UpdateOnRemove( void )
 
 
 //--------------------------------------------------------------------------------------------------------
-void CFuncNavObstruction::Spawn( void )
+CFuncNavObstruction::CFuncNavObstruction( edict_t* pEnt ) : NavEntity(pEnt)
 {
 	/*
 	 * TODO
@@ -624,7 +572,7 @@ void CFuncNavObstruction::Spawn( void )
 
 
 //--------------------------------------------------------------------------------------------------------
-void CFuncNavObstruction::InputEnable( inputdata_t &inputdata )
+void CFuncNavObstruction::InputEnable( )
 {
 	m_bDisabled = false;
 	ObstructNavAreas();
@@ -633,7 +581,7 @@ void CFuncNavObstruction::InputEnable( inputdata_t &inputdata )
 
 
 //--------------------------------------------------------------------------------------------------------
-void CFuncNavObstruction::InputDisable( inputdata_t &inputdata )
+void CFuncNavObstruction::InputDisable( )
 {
 	m_bDisabled = true;
 	TheNavMesh->UnregisterAvoidanceObstacle( this );

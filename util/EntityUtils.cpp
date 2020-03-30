@@ -15,6 +15,7 @@
 #include <edict.h>
 #include <worldsize.h>
 #include <server_class.h>
+#include <utlstring.h>
 
 extern IVEngineServer *engine;
 extern CGlobalVars *gpGlobals;
@@ -30,29 +31,31 @@ void forAllEntities(const Func& func,
 	}
 }
 
-edict_t * findEntWithSubStrInNetClassName(const char* name) {
-	CUtlLinkedList<edict_t*> result;
-	forAllEntities([name, &result](edict_t* ent) -> void {
-		IServerNetworkable *network = ent->GetNetworkable();
-		if (network == nullptr) {
-			return;
-		}
-		const char* className = network->GetServerClass()->GetName();
-		if (name == className || Q_stristr(className, name) != nullptr) {
+template<typename Func>
+void findEntWithName(const char* name, const Func& match,
+		CUtlLinkedList<edict_t*>& result) {
+	forAllEntities([match, name, &result](edict_t* ent) -> void {
+		if (!ent->IsFree() && ent->GetNetworkable() != nullptr
+				&& (name == ent->GetClassName() || match(name, ent->GetClassName()))) {
 			result.AddToTail(ent);
 		}
 	});
-	return result.Count() > 0 ? result[0]: nullptr;
 }
 
-void findEntWithSubStrInName(const char* name,
+void findEntWithMatchingName(const char* name,
 		CUtlLinkedList<edict_t*>& result) {
-	forAllEntities([name, &result](edict_t* ent) -> void {
-		const char* className = ent->GetClassName();
-		if (name == className || Q_stristr(className, name) != nullptr) {
-			result.AddToTail(ent);
-		}
-	});
+	findEntWithName(name,
+			[name, &result] (const char* name, const char* className) -> bool {
+				return Q_strcmp(className, name) == 0;
+			}, result);
+}
+
+void findEntWithPatternInName(const char* name,
+		CUtlLinkedList<edict_t*>& result) {
+	findEntWithName(name,
+			[name, &result] (const char* name, const char* className) -> bool {
+				return CUtlString(className).MatchesPattern(name);
+			}, result);
 }
 
 edict_t * findNearestEntity(const CUtlLinkedList<edict_t*>& ent,
@@ -67,7 +70,7 @@ edict_t * findNearestEntity(const CUtlLinkedList<edict_t*>& ent,
 		if (ent[i]->IsFree()) {
 			continue;
 		}
-		float dist = pos.DistToSqr(ent[i]->GetIServerEntity()->GetCollideable()->GetCollisionOrigin());
+		float dist = (pos - ent[i]->GetIServerEntity()->GetCollideable()->GetCollisionOrigin()).LengthSqr();
 		if (dist < mindist) {
 			mindist = dist;
 			ret = ent[i];
@@ -76,37 +79,11 @@ edict_t * findNearestEntity(const CUtlLinkedList<edict_t*>& ent,
 	return ret;
 }
 
-FORCEINLINE bool NamesMatch(const char *pszQuery, string_t nameToMatch) {
-	if (nameToMatch == NULL_STRING)
-		return (!pszQuery || *pszQuery == 0 || *pszQuery == '*');
-	const char *pszNameToMatch = STRING(nameToMatch);
-	// If the pointers are identical, we're identical
-	if (pszNameToMatch == pszQuery)
-		return true;
-	while (*pszNameToMatch && *pszQuery) {
-		unsigned char cName = *pszNameToMatch;
-		unsigned char cQuery = *pszQuery;
-		// simple ascii case conversion
-		if (cName != cQuery
-				&& (cName - 'A' > (unsigned char) 'Z' - 'A'
-						|| cName - 'A' + 'a' != cQuery)
-				&& (cName - 'a' > (unsigned char) 'z' - 'a'
-						|| cName - 'a' + 'A' != cQuery)) {
-			break;
-		}
-		++pszNameToMatch;
-		++pszQuery;
-	}
-	return (*pszQuery == 0 && *pszNameToMatch == 0)
-	// @TODO (toml 03-18-03): Perhaps support real wildcards. Right now, only thing supported is trailing *
-			|| *pszQuery == '*';
-}
-
 bool FClassnameIs(edict_t *pEntity, const char *szClassname) {
 	Assert(pEntity);
 	castable_string_t className(pEntity->GetClassName());
 	return IDENT_STRINGS(className, szClassname)
-			|| NamesMatch(szClassname, className);
+			|| CUtlString(className.ToCStr()).MatchesPattern(szClassname);
 }
 
 bool isBreakable(edict_t* target) {
@@ -136,36 +113,28 @@ bool IsEntityWalkable(edict_t *entity, unsigned int flags) {
 		}
 #endif // _DEBUG
 
-		return (flags & WALK_THRU_FUNC_DOORS) ? true : false;
+		return (flags & WALK_THRU_FUNC_DOORS);
 	}
 	if (FClassnameIs(entity, "prop_door*")) {
-		return (flags & WALK_THRU_PROP_DOORS) ? true : false;
+		return (flags & WALK_THRU_PROP_DOORS);
 	}
-	extern EntityClassManager *classManager;
 	// if we hit a clip brush, ignore it if it is not BRUSHSOLID_ALWAYS
 	if (FClassnameIs(entity, "func_brush")) {
-		return IsSolid(entity->GetCollideable()->GetSolid(),
-				entity->GetCollideable()->GetSolidFlags());
-		/*
-		 EntityClass* brush = classManager->getClass("CFuncBrush");
-		 switch(brush->getEntityVar("m_iSolidity").get<unsigned char>(entity)) {
-		 case BRUSHSOLID_ALWAYS:
-		 return false;
-		 case BRUSHSOLID_NEVER:
-		 return true;
-		 case BRUSHSOLID_TOGGLE:
-		 return (flags & WALK_THRU_TOGGLE_BRUSHES);
-		 }
-		 */
+		switch ( entity->GetCollideable()->GetSolidFlags( ))
+				{
+				case BRUSHSOLID_ALWAYS:
+					return false;
+				case BRUSHSOLID_NEVER:
+					return true;
+				case BRUSHSOLID_TOGGLE:
+					return (flags & WALK_THRU_TOGGLE_BRUSHES) != 0;
+				}
 	}
 	// if we hit a breakable object, assume its walkable because we will shoot it when we touch it
-	return (BasePlayer(entity).getHealth()
-			&& ((FClassnameIs(entity, "func_breakable")
-					&& (flags & WALK_THRU_BREAKABLES))
-					|| (FClassnameIs(entity, "func_breakable_surf")
-							&& (flags & WALK_THRU_BREAKABLES))))
-			|| FClassnameIs(entity, "func_playerinfected_clip")
-			|| (nav_solid_props.GetBool() && FClassnameIs(entity, "prop_"));
+	return (((FClassnameIs( entity, "func_breakable" ) || FClassnameIs( entity, "func_breakable_surf" ))
+			&& BasePlayer(entity).getHealth() > 0) && (flags & WALK_THRU_BREAKABLES))
+			|| FClassnameIs( entity, "func_playerinfected_clip" )
+			|| (nav_solid_props.GetBool() && FClassnameIs( entity, "prop_*" ));
 }
 
 edict_t* UTIL_GetListenServerEnt() {
