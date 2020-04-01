@@ -3206,10 +3206,10 @@ void CNavMesh::AddWalkableSeeds( void )
 	CUtlLinkedList<edict_t*> spawns;
 	findEntWithMatchingName(GetPlayerSpawnName(), spawns);
 	// TODO: For some reason adding multiple seeds causes the generation to ignore the last seed added
-	if(spawns.Count() > 0)
+	FOR_EACH_LL(spawns, i)
 	{
 		// snap it to the sampling grid
-		Vector pos = spawns[0]->GetCollideable()->GetCollisionOrigin();
+		Vector pos = spawns[i]->GetCollideable()->GetCollisionOrigin();
 		pos.x = TheNavMesh->SnapToGrid( pos.x );
 		pos.y = TheNavMesh->SnapToGrid( pos.y );
 
@@ -4162,7 +4162,7 @@ bool CNavMesh::SampleStep( void )
 						break;
 				}
 
-				if (m_currentNode == NULL)
+				if (m_currentNode == nullptr)
 				{
 					// all seeds exhausted, sampling complete
 					return false;
@@ -4422,17 +4422,16 @@ void CNavMesh::AddWalkableSeed( const Vector &pos, const Vector &normal )
 /**
  * Return the next walkable seed as a node
  */
-CNavNode *CNavMesh::GetNextWalkableSeedNode( void )
-{	
-	if ( m_seedIdx >= m_walkableSeeds.Count() )
-		return NULL;
-
-	WalkableSeedSpot spot = m_walkableSeeds[ m_seedIdx ];
-	++m_seedIdx;
-
-	// check if a node exists at this location
-	CNavNode *node = CNavNode::GetNode( spot.pos );
-	return node ? nullptr : new CNavNode( spot.pos, spot.normal, NULL, false );
+CNavNode* CNavMesh::GetNextWalkableSeedNode(void) {
+	for (;m_seedIdx < m_walkableSeeds.Count(); ++m_seedIdx) {
+		const auto& spot = m_walkableSeeds[m_seedIdx];
+		// check if a node exists at this location
+		if (CNavNode::GetNode(spot.pos) == nullptr) {
+			m_seedIdx++;
+			return new CNavNode(spot.pos, spot.normal, NULL, false);
+		}
+	}
+	return nullptr;
 }
 
 
