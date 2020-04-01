@@ -12,11 +12,13 @@
 #include "nav_mesh.h"
 #include "nav_node.h"
 #include "nav_pathfind.h"
+#include <util/UtilTrace.h>
 #include <util/EntityUtils.h>
 #include <viewport_panel_names.h>
 #include <eiface.h>
 #include <irecipientfilter.h>
 #include <worldsize.h>
+#include <KeyValues.h>
 
 //#include "terror/TerrorShared.h"
 #include "fmtstr.h"
@@ -55,7 +57,6 @@ const float MinObstacleAreaWidth = 10.0f;			// min width of a nav area we will g
 static CUtlVector<edict_t*> ladders;
 
 extern IVEngineServer* engine;
-extern IGameEventManager2 *gameeventmanager;
 extern CGlobalVars *gpGlobals;
 extern CNavMesh* TheNavMesh;
 extern NavAreaVector TheNavAreas;
@@ -977,36 +978,24 @@ bool CNavMesh::CreateObstacleTopAreaIfNecessary( CNavArea *area, CNavArea *areaO
 						{
 							// see if that step took us upward a significant amount
 							float deltaZ = nodeTowardOtherArea->GetPosition()->z - node->GetPosition()->z;
-							if ( deltaZ > MaxTraversableHeight )
-							{
+							if ( deltaZ > MaxTraversableHeight
 								// see if we've arrived in the other area
-								bool bInOtherArea = false;
-								if ( areaOther->Contains( *nodeTowardOtherArea->GetPosition() ) )
-								{
-									float z = areaOther->GetZ( nodeTowardOtherArea->GetPosition()->x, nodeTowardOtherArea->GetPosition()->y );
-									float deltaZ = fabs( nodeTowardOtherArea->GetPosition()->z - z );
-									if ( deltaZ < 2.0f )
-									{
-										bInOtherArea = true;
-									}
-								}
-
 								// if we have not arrived in the other area yet, take one more step in the same direction
-								if ( !bInOtherArea )
+								&& ( !areaOther->Contains( *nodeTowardOtherArea->GetPosition() )
+										|| fabs( nodeTowardOtherArea->GetPosition()->z
+											- areaOther->GetZ( nodeTowardOtherArea->GetPosition()->x,
+													nodeTowardOtherArea->GetPosition()->y ) ) >= 2.0f ))
+							{
+								CNavNode *nodeTowardOtherArea2 = nodeTowardOtherArea->GetConnectedNode( dir );
+								if ( nodeTowardOtherArea2 && areaOther->Contains( *nodeTowardOtherArea2->GetPosition() )
+										&& fabs( node->GetPosition()->z - nodeTowardOtherArea2->GetPosition()->z )
+											<= MaxTraversableHeight )
 								{
-									CNavNode *nodeTowardOtherArea2 = nodeTowardOtherArea->GetConnectedNode( dir );
-									if ( nodeTowardOtherArea2 && areaOther->Contains( *nodeTowardOtherArea2->GetPosition() ) )
-									{										
-										float areaDeltaZ = node->GetPosition()->z - nodeTowardOtherArea2->GetPosition()->z;
-										if ( fabs( areaDeltaZ ) <= MaxTraversableHeight )
-										{
-											// if we arrived in the other area, the obstacle height to get here was the peak deltaZ of the node above to get here
-											obstacleHeight = deltaZ;
-											// make a nav area MinObstacleAreaWidth wide centered on the peak node, which is GenerationStepSize away from where we started
-											obstacleDistStartCur = GenerationStepSize - (MinObstacleAreaWidth / 2);
-											obstacleDistEndCur = GenerationStepSize + (MinObstacleAreaWidth / 2);
-										}
-									}
+									// if we arrived in the other area, the obstacle height to get here was the peak deltaZ of the node above to get here
+									obstacleHeight = deltaZ;
+									// make a nav area MinObstacleAreaWidth wide centered on the peak node, which is GenerationStepSize away from where we started
+									obstacleDistStartCur = GenerationStepSize - (MinObstacleAreaWidth / 2);
+									obstacleDistEndCur = GenerationStepSize + (MinObstacleAreaWidth / 2);
 								}
 							}
 						}							
@@ -1417,8 +1406,7 @@ CON_COMMAND_F( nav_test_stairs, "Test the selected set for being on stairs", FCV
 	const NavAreaVector &selectedSet = TheNavMesh->GetSelectedSet();
 	for ( int i=0; i<selectedSet.Count(); ++i )
 	{
-		CNavArea *area = selectedSet[i];
-		if ( area->TestStairs() )
+		if ( selectedSet[i]->TestStairs() )
 		{
 			++count;
 		}
@@ -1445,12 +1433,10 @@ void CNavMesh::RemoveJumpAreas( void )
 	for ( i=0; i<TheNavAreas.Count(); ++i )
 	{
 		CNavArea *testArea = TheNavAreas[i];
-		if ( !(testArea->GetAttributes() & NAV_MESH_JUMP) )
+		if ( (testArea->GetAttributes() & NAV_MESH_JUMP) )
 		{
-			continue;
+			unusedAreas.AddToTail( testArea );
 		}
-
-		unusedAreas.AddToTail( testArea );
 	}
 
 	for ( i=0; i<unusedAreas.Count(); ++i )
@@ -3242,10 +3228,14 @@ void CNavMesh::AddWalkableSeeds( void )
  */
 void CNavMesh::BeginGeneration( bool incremental )
 {
+	extern IGameEventManager2 *gameeventmanager;
 	IGameEvent *event = gameeventmanager->CreateEvent( "nav_generate" );
 	if ( event )
 	{
 		gameeventmanager->FireEvent( event );
+	} else {
+		extern IGameEventManager *gameeventmanager1;
+		gameeventmanager1->FireEvent(new KeyValues("nav_generate"));
 	}
 
 #ifdef TERROR

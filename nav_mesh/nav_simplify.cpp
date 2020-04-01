@@ -8,6 +8,7 @@
 // nav_simplify.cpp
 
 #include "nav_mesh.h"
+#include "nav_area.h"
 #include "nav_node.h"
 #include <eiface.h>
 // NOTE: This has to be the last file included!

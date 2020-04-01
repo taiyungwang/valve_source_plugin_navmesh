@@ -12,6 +12,7 @@
 #include "nav_colors.h"
 #include "nav.h"
 #include "nav_mesh.h"
+#include <util/UtilTrace.h>
 #include <util/BasePlayer.h>
 #include <util/EntityUtils.h>
 #include <gametrace.h>
@@ -52,8 +53,7 @@ void CNavLadder::Shift( const Vector &shift )
 	{
 		for ( int i=0; i<TheNavMesh->GetLadders().Count(); ++i )
 		{
-			CNavLadder *ladder = TheNavMesh->GetLadders()[i];
-			ladder->m_id = m_nextID++;
+			TheNavMesh->GetLadders()[i]->m_id = m_nextID++;
 		}
 	}
 }
@@ -88,17 +88,9 @@ void CNavLadder::OnSplit( CNavArea *original, CNavArea *alpha, CNavArea *beta )
 
 		if ( areaConnection && *areaConnection == original )
 		{
-			float alphaDistance = alpha->GetDistanceSquaredToPoint( m_top );
-			float betaDistance = beta->GetDistanceSquaredToPoint( m_top );
-
-			if ( alphaDistance < betaDistance )
-			{
-				*areaConnection = alpha;
-			}
-			else
-			{
-				*areaConnection = beta;
-			}
+			*areaConnection = alpha->GetDistanceSquaredToPoint( m_top )
+					< beta->GetDistanceSquaredToPoint( m_top ) ?
+					alpha : beta;
 		}
 	}
 }
@@ -120,25 +112,13 @@ void CNavLadder::ConnectTo( CNavArea *area )
 		Vector dirVector = area->GetCenter() - m_top;
 		if ( fabs( dirVector.x ) > fabs( dirVector.y ) )
 		{
-			if ( dirVector.x > 0.0f ) // east
-			{
-				dir = EAST;
-			}
-			else // west
-			{
-				dir = WEST;
-			}
+			dir = dirVector.x > 0.0f ?
+					EAST : WEST;
 		}
 		else
 		{
-			if ( dirVector.y > 0.0f ) // south
-			{
-				dir = SOUTH;
-			}
-			else // north
-			{
-				dir = NORTH;
-			}
+			dir = dirVector.y > 0.0f ?
+					SOUTH : NORTH;
 		}
 
 		if ( m_dir == dir )
@@ -174,9 +154,7 @@ CNavLadder::~CNavLadder()
 	extern NavAreaVector TheNavAreas;
 	FOR_EACH_VEC( TheNavAreas, it )
 	{
-		CNavArea *area = TheNavAreas[ it ];
-
-		area->OnDestroyNotify( this );
+		TheNavAreas[ it ]->OnDestroyNotify( this );
 	}
 }
 
@@ -246,14 +224,6 @@ bool CNavLadder::IsConnected( const CNavArea *area, LadderDirectionType dir ) co
 	}
 }
 
-inline void UTIL_TraceLine(const Vector& vecAbsStart, const Vector& vecAbsEnd,
-		unsigned int mask, const IHandleEntity *ignore, int collisionGroup,
-		trace_t *ptr) {
-	Ray_t ray;
-	ray.Init(vecAbsStart, vecAbsEnd);
-	UTIL_Trace(ray, mask, CTraceFilterSimple(ignore, collisionGroup), ptr);
-}
-
 //--------------------------------------------------------------------------------------------------------------
 void CNavLadder::SetDir( NavDirType dir )
 {
@@ -272,19 +242,12 @@ void CNavLadder::SetDir( NavDirType dir )
 #else
 	UTIL_TraceLine( from, to, MASK_NPCSOLID_BRUSHONLY, NULL, COLLISION_GROUP_NONE, &result );
 #endif
-
-	if (result.fraction != 1.0f)
+	extern IPhysicsSurfaceProps *physprops;
+	if (result.fraction != 1.0f
+		&& (physprops->GetSurfaceData( result.surface.surfaceProps )->game.climbable != 0
+			|| (result.contents & CONTENTS_LADDER) != 0) )
 	{
-		extern IPhysicsSurfaceProps *physprops;
-		bool climbableSurface = physprops->GetSurfaceData( result.surface.surfaceProps )->game.climbable != 0;
-		if ( !climbableSurface )
-		{
-			climbableSurface = (result.contents & CONTENTS_LADDER) != 0;
-		}
-		if ( climbableSurface )
-		{
-			m_normal = result.plane.normal;
-		}
+		m_normal = result.plane.normal;
 	}
 }
 
@@ -315,11 +278,7 @@ void CNavLadder::DrawLadder( bool isSelected,  bool isMarked, bool isEdit ) cons
 
 	Vector eye;
 	gameclients->ClientEarPosition(ent, &eye);
-
-	float dx = eye.x - m_bottom.x;
-	float dy = eye.y - m_bottom.y;
-
-	Vector2D eyeDir( dx, dy );
+	Vector2D eyeDir( eye.x - m_bottom.x, eye.y - m_bottom.y );
 	eyeDir.NormalizeInPlace();
 	bool isFront = DotProduct2D( eyeDir, GetNormal().AsVector2D() ) > 0;
 
@@ -416,11 +375,8 @@ void CNavLadder::DrawLadder( bool isSelected,  bool isMarked, bool isEdit ) cons
 			const Vector& areaBottom = m_bottomArea->GetCenter();
 
 			 // don't draw the bottom connection too high if the ladder is very short
-			if ( top.z - bottom.z < GenerationStepSize * 1.5f )
-				offset = 0.0f;
-
-			 // don't draw the bottom connection too high if the ladder is high above the area
-			if ( bottom.z - areaBottom.z > GenerationStepSize * 1.5f )
+			if ( top.z - bottom.z < GenerationStepSize * 1.5f 			 // don't draw the bottom connection too high if the ladder is high above the area
+					|| bottom.z - areaBottom.z > GenerationStepSize * 1.5f )
 				offset = 0.0f;
 
 			NavDrawLine( bottom + Vector( 0, 0, offset ), areaBottom, ((m_bottomArea->IsConnected( this, LADDER_UP ))?NavConnectedTwoWaysColor:NavConnectedOneWayColor) );
@@ -532,21 +488,11 @@ void CNavLadder::Save( CUtlBuffer &fileBuffer, unsigned int version ) const
 	fileBuffer.PutUnsignedInt( m_dir );
 
 	// save IDs of connecting areas
-	unsigned int id;
-	id = ( m_topForwardArea ) ? m_topForwardArea->GetID() : 0;
-	fileBuffer.PutUnsignedInt( id );
-
-	id = ( m_topLeftArea ) ? m_topLeftArea->GetID() : 0;
-	fileBuffer.PutUnsignedInt( id );
-
-	id = ( m_topRightArea ) ? m_topRightArea->GetID() : 0;
-	fileBuffer.PutUnsignedInt( id );
-
-	id = ( m_topBehindArea ) ? m_topBehindArea->GetID() : 0;
-	fileBuffer.PutUnsignedInt( id );
-
-	id = ( m_bottomArea ) ? m_bottomArea->GetID() : 0;
-	fileBuffer.PutUnsignedInt( id );
+	fileBuffer.PutUnsignedInt( m_topForwardArea ? m_topForwardArea->GetID() : 0 );
+	fileBuffer.PutUnsignedInt( m_topLeftArea ? m_topLeftArea->GetID() : 0 );
+	fileBuffer.PutUnsignedInt( m_topRightArea ? m_topRightArea->GetID() : 0 );
+	fileBuffer.PutUnsignedInt( m_topBehindArea ? m_topBehindArea->GetID() : 0 );
+	fileBuffer.PutUnsignedInt( m_bottomArea ? m_bottomArea->GetID() : 0 );
 }
 
 
@@ -591,21 +537,11 @@ void CNavLadder::Load( CNavMesh* TheNavMesh, CUtlBuffer &fileBuffer, unsigned in
 	}
 
 	// load IDs of connecting areas
-	unsigned int id;
-	id = fileBuffer.GetUnsignedInt();
-	m_topForwardArea = TheNavMesh->GetNavAreaByID( id );
-
-	id = fileBuffer.GetUnsignedInt();
-	m_topLeftArea = TheNavMesh->GetNavAreaByID( id );
-
-	id = fileBuffer.GetUnsignedInt();
-	m_topRightArea = TheNavMesh->GetNavAreaByID( id );
-
-	id = fileBuffer.GetUnsignedInt();
-	m_topBehindArea = TheNavMesh->GetNavAreaByID( id );
-
-	id = fileBuffer.GetUnsignedInt();
-	m_bottomArea = TheNavMesh->GetNavAreaByID( id );
+	m_topForwardArea = TheNavMesh->GetNavAreaByID( fileBuffer.GetUnsignedInt() );
+	m_topLeftArea = TheNavMesh->GetNavAreaByID( fileBuffer.GetUnsignedInt() );
+	m_topRightArea = TheNavMesh->GetNavAreaByID( fileBuffer.GetUnsignedInt() );
+	m_topBehindArea = TheNavMesh->GetNavAreaByID( fileBuffer.GetUnsignedInt() );
+	m_bottomArea = TheNavMesh->GetNavAreaByID( fileBuffer.GetUnsignedInt() );
 	if ( !m_bottomArea )
 	{
 		DevMsg( "ERROR: Unconnected ladder #%d bottom at ( %g, %g, %g )\n", m_id, m_bottom.x, m_bottom.y, m_bottom.z );
@@ -643,12 +579,9 @@ public:
 			return true;
 		// player is on a ladder - is it this one?
 		const Vector &feet = player->GetAbsOrigin();
-		if (feet.z > m_ladder->m_top.z + HalfHumanHeight
-				|| feet.z + HumanHeight < m_ladder->m_bottom.z - HalfHumanHeight)
-			return true;
-		Vector2D away( m_ladder->m_bottom.x - feet.x, m_ladder->m_bottom.y - feet.y );
-		const float onLadderRange = 50.0f;
-		return away.IsLengthGreaterThan( onLadderRange );
+		return feet.z > m_ladder->m_top.z + HalfHumanHeight
+				|| feet.z + HumanHeight < m_ladder->m_bottom.z - HalfHumanHeight
+				|| Vector2D( m_ladder->m_bottom.x - feet.x, m_ladder->m_bottom.y - feet.y ).IsLengthGreaterThan( 50.0f );
 	}
 
 	const CNavLadder *m_ladder;
@@ -668,7 +601,7 @@ bool ForEachPlayer( Functor &func )
 	{
 		edict_t *ent = engine->PEntityOfEntIndex(i);
 		IPlayerInfo* player = playerinfomanager->GetPlayerInfo(ent);
-		if (player == NULL || !player->IsPlayer() && !player->IsConnected() )
+		if (player == NULL || (!player->IsPlayer() && !player->IsConnected()) )
 			continue;
 		if (!func( ent ))
 			return false;

@@ -3,7 +3,9 @@
 //========= Copyright Valve Corporation, All rights reserved. ============//
 
 #include "nav_mesh.h"
-
+#include "nav_area.h"
+#include <edict.h>
+#include <iplayerinfo.h>
 #include "fmtstr.h"
 #include "tier0/vprof.h"
 #include "utldict.h"

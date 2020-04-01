@@ -13,6 +13,7 @@
 #define NAV_ENTITIES_H
 
 #include "nav_mesh.h"
+#include <util/Handle.h>
 #include <utlvector.h>
 #include <utllinkedlist.h>
 #include <fmtstr.h>

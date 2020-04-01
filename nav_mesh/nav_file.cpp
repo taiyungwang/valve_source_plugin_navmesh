@@ -10,6 +10,7 @@
 // Author: Michael S. Booth (mike@turtlerockstudios.com), January-September 2003
 
 #include "nav_mesh.h"
+#include "nav_area.h"
 #include "datacache/imdlcache.h"
 
 #ifdef TERROR
@@ -542,10 +543,9 @@ NavErrorType CNavArea::Load( CUtlBuffer &fileBuffer, unsigned int version, unsig
 		
 			for( int s=0; s<spotCount; ++s )
 			{
-				fileBuffer.GetFloat();
-				fileBuffer.GetFloat();
-				fileBuffer.GetFloat();
-				fileBuffer.GetFloat();
+				for (int i = 0; i < 4; i++) {
+					fileBuffer.GetFloat();
+				}
 			}
 		}
 		return NAV_OK;
@@ -985,7 +985,7 @@ void CNavMesh::ComputeBattlefrontAreas( void )
 /**
  * Return the filename for this map's "nav map" file
  */
-const char *CNavMesh::GetFilename( void ) const
+const char *CNavMesh::GetFilename( void )
 {
 	// filename is local to game dir for Steam, so we need to prepend game dir for regular file save
 	char gamePath[256];
@@ -1320,33 +1320,27 @@ const CUtlVector< Place > *CNavMesh::GetPlacesFromNavFile( bool *hasUnnamedPlace
 		}
 	}
 	
-	if ( IsX360() )
-	{
+	if ( IsX360()
 		// 360 has compressed NAVs
-		if ( CLZMA::IsCompressed( (unsigned char *)fileBuffer.Base() ) )
-		{
-			int originalSize = CLZMA::GetActualSize( (unsigned char *)fileBuffer.Base() );
-			unsigned char *pOriginalData = new unsigned char[originalSize];
-			CLZMA::Uncompress( (unsigned char *)fileBuffer.Base(), pOriginalData );
-			fileBuffer.AssumeMemory( pOriginalData, originalSize, originalSize, CUtlBuffer::READ_ONLY );
-		}
+		&& CLZMA::IsCompressed( (unsigned char *)fileBuffer.Base() ) )
+	{
+		int originalSize = CLZMA::GetActualSize( (unsigned char *)fileBuffer.Base() );
+		unsigned char *pOriginalData = new unsigned char[originalSize];
+		CLZMA::Uncompress( (unsigned char *)fileBuffer.Base(), pOriginalData );
+		fileBuffer.AssumeMemory( pOriginalData, originalSize, originalSize, CUtlBuffer::READ_ONLY );
 	}
 
 	// check magic number
-	unsigned int magic = fileBuffer.GetUnsignedInt();
-	if ( !fileBuffer.IsValid() || magic != NAV_MAGIC_NUMBER )
+	if ( fileBuffer.GetUnsignedInt() != NAV_MAGIC_NUMBER || !fileBuffer.IsValid() )
 	{
 		return NULL;	// Corrupt nav file?
 	}
 
 	// read file version number
 	unsigned int version = fileBuffer.GetUnsignedInt();
-	if ( !fileBuffer.IsValid() || version > NavCurrentVersion )
-	{
-		return NULL;	// Unknown nav file version
-	}
-
-	if ( version < 5 )
+	if ( !fileBuffer.IsValid() || version > NavCurrentVersion
+			// Unknown nav file version
+			|| version < 5 )
 	{
 		return NULL;	// Too old to have place names
 	}
@@ -1413,16 +1407,14 @@ NavErrorType CNavMesh::Load( void )
 		}
 	}
 
-	if ( IsX360() )
-	{
+	if ( IsX360()
 		// 360 has compressed NAVs
-		if ( CLZMA::IsCompressed( (unsigned char *)fileBuffer.Base() ) )
-		{
-			int originalSize = CLZMA::GetActualSize( (unsigned char *)fileBuffer.Base() );
-			unsigned char *pOriginalData = new unsigned char[originalSize];
-			CLZMA::Uncompress( (unsigned char *)fileBuffer.Base(), pOriginalData );
-			fileBuffer.AssumeMemory( pOriginalData, originalSize, originalSize, CUtlBuffer::READ_ONLY );
-		}
+		&&  CLZMA::IsCompressed( (unsigned char *)fileBuffer.Base() ) )
+	{
+		int originalSize = CLZMA::GetActualSize( (unsigned char *)fileBuffer.Base() );
+		unsigned char *pOriginalData = new unsigned char[originalSize];
+		CLZMA::Uncompress( (unsigned char *)fileBuffer.Base(), pOriginalData );
+		fileBuffer.AssumeMemory( pOriginalData, originalSize, originalSize, CUtlBuffer::READ_ONLY );
 	}
 
 	// check magic number
@@ -1464,9 +1456,7 @@ NavErrorType CNavMesh::Load( void )
 			return NAV_INVALID_FILE;
 		}
 
-		unsigned int bspSize = filesystem->Size( bspFilename );
-
-		if ( bspSize != saveBspSize && !navIsInBsp )
+		if ( filesystem->Size( bspFilename ) != saveBspSize && !navIsInBsp )
 		{
 			if ( engine->IsDedicatedServer() )
 			{
@@ -1481,14 +1471,7 @@ NavErrorType CNavMesh::Load( void )
 		}
 	}
 
-	if ( version >= 14 )
-	{
-		m_isAnalyzed = fileBuffer.GetUnsignedChar() != 0;
-	}
-	else
-	{
-		m_isAnalyzed = false;
-	}
+	m_isAnalyzed = version >= 14 && fileBuffer.GetUnsignedChar() != 0;
 
 	// load Place directory
 	if ( version >= 5 )
@@ -1592,11 +1575,7 @@ struct OneWayLink_t
 	static int Compare(const OneWayLink_t *lhs, const OneWayLink_t *rhs )
 	{
 		int result = ( lhs->destArea - rhs->destArea );
-		if ( result != 0 )
-		{
-			return result;
-		}
-		return ( lhs->backD - rhs->backD );
+		return result != 0 ?  result : ( lhs->backD - rhs->backD );
 	}
 };
 

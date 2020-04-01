@@ -13,20 +13,12 @@
 
 #include "nav.h"
 #include <util/Handle.h>
-#include <utlvector.h>
 
 class CUtlBuffer;
-class CNavArea;
 class CNavMesh;
-class IPlayerInfo;
 class IServerEntity;
-struct edict_t;
-
 
 typedef CHandle<IServerEntity> EHandle;
-
-edict_t* findEntityByMoveTypeNearest(unsigned char type, const Vector& pos,
-		float maxRadius);
 
 //--------------------------------------------------------------------------------------------------------------
 /**
@@ -128,7 +120,6 @@ private:
 	static unsigned int m_nextID;					///< used to allocate unique IDs
 	unsigned int m_id;								///< unique area ID
 };
-typedef CUtlVector< CNavLadder * > NavLadderVector;
 
 //--------------------------------------------------------------------------------------------------------------
 inline IServerEntity *CNavLadder::GetLadderEntity( void ) const

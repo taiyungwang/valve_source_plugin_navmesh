@@ -17,12 +17,13 @@
 #include <util/UtilTrace.h>
 #include <util/EntityUtils.h>
 #include <ivdebugoverlay.h>
-#include <iplayerinfo.h>
 #include <eiface.h>
+#include <iplayerinfo.h>
 #include <vprof.h>
 #include <filesystem.h>
 #include <utlbuffer.h>
 #include <utlhash.h>
+#include <generichash.h>
 #include <fmtstr.h>
 // NOTE: This has to be the last file included!
 #include "tier0/memdbgon.h"
@@ -61,6 +62,64 @@ extern NavAreaVector TheNavAreas;
 int g_DebugPathfindCounter = 0;
 #endif
 
+
+bool NavAttributeClearer::operator() ( CNavArea *area )
+{
+	area->SetAttributes( area->GetAttributes() & (~m_attribute) );
+
+	return true;
+}
+
+bool NavAttributeSetter::operator() ( CNavArea *area )
+{
+	area->SetAttributes( area->GetAttributes() | m_attribute );
+
+	return true;
+}
+
+unsigned int CVisPairHashFuncs::operator()( const NavVisPair_t &item ) const
+{
+	COMPILE_TIME_ASSERT( sizeof(CNavArea *) == 4 );
+	int key[2] = { (int)item.pAreas[0] + item.pAreas[1]->GetID(), (int)item.pAreas[1] + item.pAreas[0]->GetID() };
+	return Hash8( key );
+}
+
+
+template<typename Functor>
+bool ForEachActor(Functor &func) {
+	extern CGlobalVars *gpGlobals;
+	// iterate all non-bot players
+	for (int i = 1; i <= gpGlobals->maxClients; ++i) {
+		edict_t *ent = engine->PEntityOfEntIndex(i);
+		if (ent == nullptr) {
+			continue;
+		}
+		IPlayerInfo* player = playerinfomanager->GetPlayerInfo(ent);
+		if (player == NULL || !player->IsPlayer() || !player->IsConnected())
+			continue;
+#ifdef NEXT_BOT
+		// skip bots - ForEachCombatCharacter will catch them
+		INextBot *bot = player->MyNextBotPointer();
+		if ( bot )
+		{
+			continue;
+		}
+#endif // NEXT_BOT
+		if (!func(ent)) {
+			return false;
+		}
+	}
+
+#ifdef NEXT_BOT
+	// iterate all NextBots
+	return TheNextBots().ForEachCombatCharacter( func );
+#else
+	return true;
+#endif // NEXT_BOT
+}
+
+template bool ForEachActor(EditDestroyNotification&);
+template bool ForEachActor(ForgetArea&);
 
 //--------------------------------------------------------------------------------------------------------------
 CNavMesh::CNavMesh( void )
@@ -2402,16 +2461,11 @@ void CommandNavPlaceList( void )
 
 	FOR_EACH_VEC( TheNavAreas, nit )
 	{
-		CNavArea *area = TheNavAreas[ nit ];
+		Place place = TheNavAreas[ nit ]->GetPlace();
 
-		Place place = area->GetPlace();
-
-		if ( place )
+		if ( place && !placeDirectory.HasElement( place ) )
 		{
-			if ( !placeDirectory.HasElement( place ) )
-			{
-				placeDirectory.AddToTail( place );
-			}
+			placeDirectory.AddToTail( place );
 		}
 	}
 
@@ -2598,10 +2652,7 @@ static ConCommand nav_generate_incremental( "nav_generate_incremental", CommandN
 //--------------------------------------------------------------------------------------------------------------
 void CommandNavAnalyze( void )
 {
-	if ( !UTIL_IsCommandIssuedByServerAdmin() )
-		return;
-
-	if ( nav_edit.GetBool() )
+	if ( UTIL_IsCommandIssuedByServerAdmin() && nav_edit.GetBool() )
 	{
 		TheNavMesh->BeginAnalysis();
 	}
@@ -3287,4 +3338,23 @@ void CNavMesh::EndVisibilityComputations( void )
 	}
 
 	Msg( "NavMesh Visibility List Lengths:  min = %d, avg = %d, max = %d\n", minVisLength, avgVisLength, maxVisLength );
+}
+
+
+//--------------------------------------------------------------------------------------------------------------
+inline unsigned int CNavMesh::GetGenerationTraceMask( void ) const
+{
+	return MASK_NPCSOLID_BRUSHONLY;
+}
+
+//--------------------------------------------------------------------------------------------------------------
+inline CNavArea *CNavMesh::CreateArea( void ) const
+{
+	return new CNavArea(GetNavPlace());
+}
+
+//--------------------------------------------------------------------------------------------------------------
+inline void CNavMesh::DestroyArea( CNavArea *pArea ) const
+{
+	delete pArea;
 }

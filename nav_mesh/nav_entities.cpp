@@ -11,6 +11,7 @@
 
 #include "nav_entities.h"
 
+#include "nav_area.h"
 #include <util/UtilTrace.h>
 #include <eiface.h>
 #include <iplayerinfo.h>
@@ -461,7 +462,6 @@ void CFuncNavBlocker::BlockNav( void )
 	extent.hi = m_CachedMaxs;
 	TheNavMesh->ForAllAreasOverlappingExtent<CFuncNavBlocker>( *this, extent );
 }
-
 
 //--------------------------------------------------------------------------------------------------------
 void CFuncNavBlocker::UnblockNav( void )

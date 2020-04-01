@@ -13,6 +13,7 @@
 #define _NAV_H_
 
 #include <vector.h>
+#include <utlvector.h>
 
 struct edict_t;
 
@@ -317,10 +318,8 @@ inline NavDirType AngleToDirection( float angle )
 	if (angle >= 45 && angle < 135)
 		return SOUTH;
 
-	if (angle >= 135 && angle < 225)
-		return WEST;
-
-	return NORTH;
+	return angle >= 135 && angle < 225 ?
+		WEST :  NORTH;
 }
 
 //--------------------------------------------------------------------------------------------------------------
@@ -328,11 +327,11 @@ inline void DirectionToVector2D( NavDirType dir, Vector2D *v )
 {
 	switch( dir )
 	{
-		default: Assert(0);
 		case NORTH: v->x =  0.0f; v->y = -1.0f; break;
 		case SOUTH: v->x =  0.0f; v->y =  1.0f; break;
 		case EAST:  v->x =  1.0f; v->y =  0.0f; break;
 		case WEST:  v->x = -1.0f; v->y =  0.0f; break;
+		default: Assert(0);
 	}
 }
 
@@ -387,5 +386,23 @@ inline float RoundToUnits( float val, float unit )
 	val = val + ((val < 0.0f) ? -unit*0.5f : unit*0.5f);
 	return (float)( unit * ( ((int)val) / (int)unit ) );
 }
+
+class CNavLadder;
+struct NavConnect;
+union NavLadderConnect;
+
+typedef CUtlVector< CNavArea * > NavAreaVector;
+
+typedef CUtlVector< CNavLadder * > NavLadderVector;
+
+#if !defined(_X360)
+typedef CUtlVectorUltraConservativeAllocator CNavVectorAllocator;
+#else
+typedef CNavVectorNoEditAllocator CNavVectorAllocator;
+#endif
+
+typedef CUtlVectorUltraConservative<NavLadderConnect, CNavVectorAllocator> NavLadderConnectVector;
+
+typedef CUtlVectorUltraConservative<NavConnect, CNavVectorAllocator> NavConnectVector;
 
 #endif // _NAV_H_

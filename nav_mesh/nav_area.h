@@ -14,13 +14,8 @@
 
 #include "nav_ladder.h"
 #include "CountDownTimer.h"
-#include <util/UtilTrace.h>
-#include <networkvar.h>
-#include <eiface.h>
-#include <iplayerinfo.h>
-#include <utlvector.h>
 #include <shareddefs.h>
-#include <platform.h>
+#include <networkvar.h>
 #include <tier1/memstack.h>
 
 // BOTPORT: Clean up relationship between team index and danger storage in nav areas
@@ -38,15 +33,8 @@ inline void DebuggerBreakOnNaN_StagingOnly( float val )
 #endif
 
 class CFuncElevator;
-class CFuncNavPrerequisite;
 class CFuncNavCost;
 class KeyValues;
-class CNavLadder;
-class CUtlBuffer;
-class CNavArea;
-class CNavNode;
-class CNavMesh;
-struct Extent;
 
 inline bool FStrEq(const char *sz1, const char *sz2)
 {
@@ -77,11 +65,6 @@ private:
 	static int m_nBytesCurrent;
 };
 
-#if !defined(_X360)
-typedef CUtlVectorUltraConservativeAllocator CNavVectorAllocator;
-#else
-typedef CNavVectorNoEditAllocator CNavVectorAllocator;
-#endif
 
 //-------------------------------------------------------------------------------------------------------------------
 /**
@@ -117,11 +100,9 @@ struct NavConnect
 
 	bool operator==( const NavConnect &other ) const
 	{
-		return (area == other.area) ? true : false;
+		return area == other.area;
 	}
 };
-
-typedef CUtlVectorUltraConservative<NavConnect, CNavVectorAllocator> NavConnectVector;
 
 //-------------------------------------------------------------------------------------------------------------------
 /**
@@ -134,11 +115,9 @@ union NavLadderConnect
 
 	bool operator==( const NavLadderConnect &other ) const
 	{
-		return (ladder == other.ladder) ? true : false;
+		return ladder == other.ladder;
 	}
 };
-typedef CUtlVectorUltraConservative<NavLadderConnect, CNavVectorAllocator> NavLadderConnectVector;
-
 
 //--------------------------------------------------------------------------------------------------------------
 /**
@@ -580,7 +559,7 @@ public:
 			if ( m_potentiallyVisibleAreas[i].attributes == NOT_VISIBLE )
 				continue;
 			
-			if ( func( area ) == false )
+			if ( !func( area ) )
 				return false;
 		}
 
@@ -592,11 +571,9 @@ public:
 
 		for ( i=0; i<inherited.Count(); ++i )
 		{
-			if ( !inherited[i].area )
-				continue;
-
+			if ( !inherited[i].area
 			// We may have visited this from m_potentiallyVisibleAreas
-			if ( inherited[i].area->m_nVisTestCounter == s_nCurrVisTestCounter )
+					|| inherited[i].area->m_nVisTestCounter == s_nCurrVisTestCounter )
 				continue;
 
 			// Theoretically, this shouldn't matter. But, just in case!
@@ -605,7 +582,7 @@ public:
 			if ( inherited[i].attributes == NOT_VISIBLE )
 				continue;
 
-			if ( func( inherited[i].area ) == false )
+			if ( !func( inherited[i].area ) )
 				return false;
 		}
 
@@ -637,7 +614,7 @@ public:
 			if ( ( m_potentiallyVisibleAreas[i].attributes & COMPLETELY_VISIBLE ) == 0 )
 				continue;
 
-			if ( func( area ) == false )
+			if ( !func( area ) )
 				return false;
 		}
 
@@ -649,11 +626,9 @@ public:
 
 		for ( i=0; i<inherited.Count(); ++i )
 		{
-			if ( !inherited[i].area )
-				continue;
-			
-			// We may have visited this from m_potentiallyVisibleAreas
-			if ( inherited[i].area->m_nVisTestCounter == s_nCurrVisTestCounter )
+			if ( !inherited[i].area
+					// We may have visited this from m_potentiallyVisibleAreas
+					|| inherited[i].area->m_nVisTestCounter == s_nCurrVisTestCounter )
 				continue;
 
 			// Theoretically, this shouldn't matter. But, just in case!
@@ -662,7 +637,7 @@ public:
 			if ( ( inherited[i].attributes & COMPLETELY_VISIBLE ) == 0 )
 				continue;
 
-			if ( func( inherited[i].area ) == false )
+			if ( !func( inherited[i].area ) )
 				return false;
 		}
 
@@ -793,6 +768,52 @@ typedef CUtlVector< CNavArea * > NavAreaVector;
 
 
 //--------------------------------------------------------------------------------------------------------------
+class COverlapCheck
+{
+public:
+	COverlapCheck(const CNavArea *me, const Vector &pos) :
+			m_pos(pos), m_me(me), m_myZ(me->GetZ(pos)) {
+	}
+
+	bool operator() ( CNavArea *area )
+	{
+		// skip self
+		if ( area == m_me
+				// check 2D overlap
+			|| !area->IsOverlapping( m_pos ) )
+			return true;
+
+		float theirZ = area->GetZ( m_pos );
+		return theirZ > m_pos.z
+			// they are above the point
+				|| theirZ <= m_myZ;
+			// we are below an area that is beneath the given position
+	}
+
+	const CNavArea *m_me;
+	float m_myZ;
+	const Vector &m_pos;
+};
+
+//--------------------------------------------------------------------------------------------------------------
+class ForgetArea
+{
+public:
+	ForgetArea( CNavArea *area )
+	{
+		m_area = area;
+	}
+
+	bool operator() ( edict_t *player )
+	{
+		// TODO: IMPELMENT
+		return true;
+	}
+
+	CNavArea *m_area;
+};
+
+//--------------------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------
 //
 // Inlines
@@ -889,10 +910,7 @@ inline CNavArea *CNavArea::PopOpenList( void )
 //--------------------------------------------------------------------------------------------------------------
 inline bool CNavArea::IsClosed( void ) const
 {
-	if (IsMarked() && !IsOpen())
-		return true;
-
-	return false;
+	return IsMarked() && !IsOpen();
 }
 
 //--------------------------------------------------------------------------------------------------------------
@@ -908,13 +926,6 @@ inline void CNavArea::RemoveFromClosedList( void )
 }
 
 //--------------------------------------------------------------------------------------------------------------
-inline void CNavArea::SetClearedTimestamp( int teamID )
-{
-	extern IPlayerInfoManager* playerinfomanager;
-	m_clearedTimestamp[ teamID % MAX_NAV_TEAMS ] = playerinfomanager->GetGlobalVars()->curtime;
-}
-
-//--------------------------------------------------------------------------------------------------------------
 inline float CNavArea::GetClearedTimestamp( int teamID ) const
 { 
 	return m_clearedTimestamp[ teamID % MAX_NAV_TEAMS ];
@@ -925,25 +936,6 @@ inline float CNavArea::GetEarliestOccupyTime( int teamID ) const
 {
 	return m_earliestOccupyTime[ teamID % MAX_NAV_TEAMS ];
 }
-
-
-//--------------------------------------------------------------------------------------------------------------
-inline bool CNavArea::IsDamaging( void ) const
-{
-	extern IPlayerInfoManager* playerinfomanager;
-	return ( playerinfomanager->GetGlobalVars()->tickcount <= m_damagingTickCount );
-}
-
-
-//--------------------------------------------------------------------------------------------------------------
-inline void CNavArea::MarkAsDamaging( float duration )
-{
-	extern IPlayerInfoManager* playerinfomanager;
-	CGlobalVars *gpGlobals = playerinfomanager->GetGlobalVars();
-	m_damagingTickCount = gpGlobals->tickcount
-			+ TIME_TO_TICKS(duration);
-}
-
 
 //--------------------------------------------------------------------------------------------------------------
 inline bool CNavArea::HasAvoidanceObstacle( float maxObstructionHeight ) const
@@ -956,45 +948,6 @@ inline bool CNavArea::HasAvoidanceObstacle( float maxObstructionHeight ) const
 inline float CNavArea::GetAvoidanceObstacleHeight( void ) const
 {
 	return m_avoidanceObstacleHeight;
-}
-
-
-//--------------------------------------------------------------------------------------------------------------
-inline bool CNavArea::IsVisible( const Vector &eye, Vector *visSpot ) const
-{
-	Vector corner;
-	trace_t result;
-	CTraceFilterNoNPCsOrPlayer traceFilter( NULL, COLLISION_GROUP_NONE );
-	const float offset = 0.75f * HumanHeight;
-
-	// check center first
-	UTIL_TraceLine( eye, GetCenter() + Vector( 0, 0, offset ), MASK_BLOCKLOS_AND_NPCS|CONTENTS_IGNORE_NODRAW_OPAQUE, &traceFilter, &result );
-	if (result.fraction == 1.0f)
-	{
-		// we can see this area
-		if (visSpot)
-		{
-			*visSpot = GetCenter();
-		}
-		return true;
-	}
-
-	for( int c=0; c<NUM_CORNERS; ++c )
-	{
-		corner = GetCorner( (NavCornerType)c );
-		UTIL_TraceLine( eye, corner + Vector( 0, 0, offset ), MASK_BLOCKLOS_AND_NPCS|CONTENTS_IGNORE_NODRAW_OPAQUE, &traceFilter, &result );
-		if (result.fraction == 1.0f)
-		{
-			// we can see this area
-			if (visSpot)
-			{
-				*visSpot = corner;
-			}
-			return true;
-		}
-	}
-
-	return false;
 }
 
 #ifndef DEBUG_AREA_PLAYERCOUNTS
