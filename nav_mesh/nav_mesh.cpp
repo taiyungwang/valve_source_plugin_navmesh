@@ -2055,7 +2055,7 @@ CON_COMMAND_F( nav_select_stairs, "Adds all stairway areas to the selected set",
 
 
 //--------------------------------------------------------------------------------------------------------------
-CON_COMMAND_F( nav_select_orphans, "Adds all orphan areas to the selected set (not reachable from spawn point).", FCVAR_CHEAT )
+CON_COMMAND_F( nav_select_orphans, "Adds all orphan areas to the selected set (highlight a valid area first).", FCVAR_CHEAT )
 {
 	if ( !UTIL_IsCommandIssuedByServerAdmin() )
 		return;

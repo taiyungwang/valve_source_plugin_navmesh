@@ -2196,32 +2196,9 @@ void CNavMesh::CommandNavSelectOrphans( void )
 	{
 		EmitSound(player, "EDIT_DELETE" );
 		// collect all areas connected to this area
-		class OrphanCollector: public ISearchSurroundingAreasFunctor {
-		public:
-			OrphanCollector() {
-				TheNavMesh->ClearSelectedSet();
-			}
-
-			// return true if 'adjArea' should be included in the ongoing search
-			bool ShouldSearch( CNavArea *adjArea, CNavArea *currentArea, float travelDistanceSoFar )
-			{
-				return true;
-			}
-
-			bool operator() ( CNavArea *area, CNavArea *priorArea, float travelDistanceSoFar ) {
-				// already selected areas terminate flood select
-				if (TheNavMesh->IsInSelectedSet( area ))
-					return false;
-				TheNavMesh->AddToSelectedSet( area );
-				++m_count;
-
-				return true;
-			}
-		private:
-			int m_count = 0;
-
-		} collector;
-		SearchSurroundingAreas( start, collector );
+		SelectCollector collector;
+		SearchSurroundingAreas( start, start->GetCenter(), collector, -1,
+					INCLUDE_BLOCKED_AREAS | INCLUDE_INCOMING_CONNECTIONS );
 
 		// toggle the selected set to reveal the orphans
 		CommandNavToggleSelectedSet();
