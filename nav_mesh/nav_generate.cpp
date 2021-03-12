@@ -968,37 +968,32 @@ bool CNavMesh::CreateObstacleTopAreaIfNecessary( CNavArea *area, CNavArea *areaO
 					// use the inter-node obstacle height from this node toward the next area
 					obstacleHeight = node->m_obstacleHeight[dir];
 				}
-				else
+				else if ( !areaOther->Contains( *node->GetPosition() ) )
 				{
-					if ( !areaOther->Contains( *node->GetPosition() ) )
+					// step one node toward the other area
+					CNavNode *nodeTowardOtherArea = node->GetConnectedNode( dir );
+					if ( nodeTowardOtherArea )
 					{
-						// step one node toward the other area
-						CNavNode *nodeTowardOtherArea = node->GetConnectedNode( dir );
-						if ( nodeTowardOtherArea )
+						// see if that step took us upward a significant amount
+						float deltaZ = nodeTowardOtherArea->GetPosition()->z - node->GetPosition()->z;
+						if ( deltaZ > MaxTraversableHeight
+							// see if we've arrived in the other area
+							// if we have not arrived in the other area yet, take one more step in the same direction
+							&& (!areaOther->Contains( *nodeTowardOtherArea->GetPosition() )
+									|| fabs( nodeTowardOtherArea->GetPosition()->z
+										- areaOther->GetZ( nodeTowardOtherArea->GetPosition()->x, nodeTowardOtherArea->GetPosition()->y ) ) >= 2.0f ))
 						{
-							// see if that step took us upward a significant amount
-							float deltaZ = nodeTowardOtherArea->GetPosition()->z - node->GetPosition()->z;
-							if ( deltaZ > MaxTraversableHeight
-								// see if we've arrived in the other area
-								// if we have not arrived in the other area yet, take one more step in the same direction
-								&& ( !areaOther->Contains( *nodeTowardOtherArea->GetPosition() )
-										|| fabs( nodeTowardOtherArea->GetPosition()->z
-											- areaOther->GetZ( nodeTowardOtherArea->GetPosition()->x,
-													nodeTowardOtherArea->GetPosition()->y ) ) >= 2.0f ))
+							CNavNode *nodeTowardOtherArea2 = nodeTowardOtherArea->GetConnectedNode( dir );
+							if ( nodeTowardOtherArea2 && areaOther->Contains( *nodeTowardOtherArea2->GetPosition() )
+									&& fabs( node->GetPosition()->z - nodeTowardOtherArea2->GetPosition()->z ) <= MaxTraversableHeight )
 							{
-								CNavNode *nodeTowardOtherArea2 = nodeTowardOtherArea->GetConnectedNode( dir );
-								if ( nodeTowardOtherArea2 && areaOther->Contains( *nodeTowardOtherArea2->GetPosition() )
-										&& fabs( node->GetPosition()->z - nodeTowardOtherArea2->GetPosition()->z )
-											<= MaxTraversableHeight )
-								{
-									// if we arrived in the other area, the obstacle height to get here was the peak deltaZ of the node above to get here
-									obstacleHeight = deltaZ;
-									// make a nav area MinObstacleAreaWidth wide centered on the peak node, which is GenerationStepSize away from where we started
-									obstacleDistStartCur = GenerationStepSize - (MinObstacleAreaWidth / 2);
-									obstacleDistEndCur = GenerationStepSize + (MinObstacleAreaWidth / 2);
-								}
+								// if we arrived in the other area, the obstacle height to get here was the peak deltaZ of the node above to get here
+								obstacleHeight = deltaZ;
+								// make a nav area MinObstacleAreaWidth wide centered on the peak node, which is GenerationStepSize away from where we started
+								obstacleDistStartCur = GenerationStepSize - (MinObstacleAreaWidth / 2);
+								obstacleDistEndCur = GenerationStepSize + (MinObstacleAreaWidth / 2);
 							}
-						}							
+						}
 					}
 				}
 
@@ -3204,8 +3199,9 @@ void CNavMesh::CreateNavAreasFromNodes( void )
 void CNavMesh::AddWalkableSeeds( void )
 {
 	CUtlLinkedList<edict_t*> spawns;
-	findEntWithMatchingName(GetPlayerSpawnName(), spawns);
-	// TODO: For some reason adding multiple seeds causes the generation to ignore the last seed added
+	FOR_EACH_VEC(this->m_spawnNames, i) {
+		findEntWithMatchingName(m_spawnNames[i], spawns);
+	}
 	FOR_EACH_LL(spawns, i)
 	{
 		// snap it to the sampling grid
@@ -3692,10 +3688,7 @@ bool CNavMesh::UpdateGeneration( float maxTime )
 		case FIND_LIGHT_INTENSITY:
 		{
 			host_thread_mode.SetValue( 0 );	// need non-threaded server for light calcs
-
-			edict_t* host = UTIL_GetListenServerEnt();
-
-			if ( !s_unlitAreas.Count() || !host )
+			if ( !s_unlitAreas.Count() || !UTIL_GetListenServerEnt() )
 			{
 				Msg( "Finding light intensity...DONE\n" );
 
@@ -3870,33 +3863,6 @@ bool CNavMesh::UpdateGeneration( float maxTime )
 	}
 
 	return false;
-}
-
-//--------------------------------------------------------------------------------------------------------------
-/**
- * Define the name of player spawn entities
- */
-void CNavMesh::SetPlayerSpawnName( const char *name )
-{
-	if (m_spawnName)
-	{
-		delete [] m_spawnName;
-	}
-
-	m_spawnName = new char [ strlen(name) + 1 ];
-	strcpy( m_spawnName, name );
-}
-
-
-//--------------------------------------------------------------------------------------------------------------
-/**
- * Return name of player spawn entity
- */
-const char *CNavMesh::GetPlayerSpawnName( void ) const
-{
-	return m_spawnName ? m_spawnName :
-	// default value
-			"info_player_start";
 }
 
 //--------------------------------------------------------------------------------------------------------------

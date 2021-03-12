@@ -124,7 +124,6 @@ template bool ForEachActor(ForgetArea&);
 //--------------------------------------------------------------------------------------------------------------
 CNavMesh::CNavMesh( void )
 {
-	m_spawnName = NULL;
 	m_gridCellSize = 300.0f;
 	m_editMode = NORMAL;
 	m_bQuitWhenFinished = false;
@@ -146,8 +145,6 @@ CNavMesh::CNavMesh( void )
 //--------------------------------------------------------------------------------------------------------------
 CNavMesh::~CNavMesh()
 {
-	if (m_spawnName)
-		delete [] m_spawnName;
 
  // !!!!bug!!! why does this crash in linux on server exit
 	for( unsigned int i=0; i<m_placeCount; ++i )
@@ -188,12 +185,6 @@ void CNavMesh::Reset( void )
 
 	m_updateBlockedAreasTimer.Invalidate();
 
-	if (m_spawnName)
-	{
-		delete [] m_spawnName;
-	}
-
-	m_spawnName = NULL;
 
 	m_walkableSeeds.RemoveAll();
 }
@@ -977,11 +968,9 @@ CNavArea *CNavMesh::GetNearestNavArea( const Vector &pos, float maxDist, bool ch
 					CNavArea *area = (*areaVector)[ it ];
 
 					// skip if we've already visited this area
-					if ( area->m_nearNavSearchMarker == searchMarker )
-						continue;
-
-					// don't consider blocked areas
-					if ( area->IsBlocked( team ) )
+					if ( area->m_nearNavSearchMarker == searchMarker
+							// don't consider blocked areas
+							|| area->IsBlocked( team ) )
 						continue;
 
 					// mark as visited

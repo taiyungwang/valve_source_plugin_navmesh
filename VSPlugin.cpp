@@ -100,6 +100,14 @@ bool VSPlugin::Load(CreateInterfaceFn interfaceFactory,
 	classManager = new EntityClassManager(servergamedll);
 	gpGlobals = playerinfomanager->GetGlobalVars();
 	TheNavMesh = new CNavMesh;
+	char modPath[256];
+	engine->GetGameDir(modPath, 256);
+	if (Q_stristr(modPath, "dod")) {
+		TheNavMesh->addPlayerSpawnName("info_player_axis");
+		TheNavMesh->addPlayerSpawnName("info_player_allies");
+	} else {
+		TheNavMesh->addPlayerSpawnName("info_player_start");
+	}
 	return true;
 }
 
@@ -118,16 +126,11 @@ void VSPlugin::GameFrame(bool simulating) {
 		return;
 	}
 	if (!navMeshLoadAttempted) {
-		if (TheNavMesh->Load() == NAV_OK) {
+		NavErrorType rc = TheNavMesh->Load();
+		if (rc == NAV_OK) {
 			Msg("Loaded Navigation mesh.\n");
-		}
-		char modPath[256];
-		engine->GetGameDir(modPath, 256);
-		if (Q_stristr(modPath, "dod")) {
-			TheNavMesh->SetPlayerSpawnName("info_player_axis");
-			TheNavMesh->AddWalkableSeeds();
-			TheNavMesh->SetPlayerSpawnName("info_player_allies");
-			// walkable seeds will be added for allies if generation is invoked.
+		} else {
+			Msg("Navigation mesh not loaded, reason code: %d", rc);
 		}
 		navMeshLoadAttempted = true;
 	}

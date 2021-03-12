@@ -327,8 +327,7 @@ public:
 	void BeginAnalysis( bool quitWhenFinished = false );						// re-analyze an existing Mesh.  Determine Hiding Spots, Encounter Spots, etc.
 
 	bool IsGenerating( void ) const		{ return m_generationMode != GENERATE_NONE; }	// return true while a Navigation Mesh is being generated
-	const char *GetPlayerSpawnName( void ) const;						// return name of player spawn entity
-	void SetPlayerSpawnName( const char *name );						// define the name of player spawn entities
+	void addPlayerSpawnName(const char *name) {	m_spawnNames.AddToTail(name); }		// adds the name of a spawn entitie
 	void AddWalkableSeed( const Vector &pos, const Vector &normal );	// add given walkable position to list of seed positions for map sampling
 	virtual void AddWalkableSeeds( void );								// adds walkable positions for any/all positions a mod specifies
 	void ClearWalkableSeeds( void )		{ m_walkableSeeds.RemoveAll(); }	// erase all walkable seed positions
@@ -776,8 +775,7 @@ private:
 	float m_generationStartTime;
 	Extent m_simplifyGenerationExtent;
 
-	char *m_spawnName;											// name of player spawn entity, used to initiate sampling
-
+	CUtlVector<CUtlString> m_spawnNames;						// list of spawn names
 	struct WalkableSeedSpot
 	{
 		Vector pos;
