@@ -45,16 +45,16 @@ void findEntWithName(const char* name, const Func& match,
 void findEntWithMatchingName(const char* name,
 		CUtlLinkedList<edict_t*>& result) {
 	findEntWithName(name,
-			[name, &result] (const char* name, const char* className) -> bool {
-				return Q_strcmp(className, name) == 0;
+			[name, &result] (const char* targetName, const char* className) -> bool {
+				return Q_strcmp(className, targetName) == 0;
 			}, result);
 }
 
 void findEntWithPatternInName(const char* name,
 		CUtlLinkedList<edict_t*>& result) {
 	findEntWithName(name,
-			[name, &result] (const char* name, const char* className) -> bool {
-				return CUtlString(className).MatchesPattern(name);
+			[name, &result] (const char* targetName, const char* className) -> bool {
+				return CUtlString(className).MatchesPattern(targetName);
 			}, result);
 }
 

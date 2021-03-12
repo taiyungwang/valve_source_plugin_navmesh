@@ -23,7 +23,7 @@ EntityClassManager::EntityClassManager(IServerGameDLL *servergamedll) {
 }
 
 EntityClassManager::~EntityClassManager() {
-	classes.Purge();
+	classes.PurgeAndDeleteElements();
 }
 
 EntityClass* EntityClassManager::getClass(const char* name) {
