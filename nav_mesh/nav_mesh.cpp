@@ -84,10 +84,10 @@ unsigned int CVisPairHashFuncs::operator()( const NavVisPair_t &item ) const
 	return Hash8( key );
 }
 
+extern CGlobalVars *gpGlobals;
 
 template<typename Functor>
 bool ForEachActor(Functor &func) {
-	extern CGlobalVars *gpGlobals;
 	// iterate all non-bot players
 	for (int i = 1; i <= gpGlobals->maxClients; ++i) {
 		edict_t *ent = engine->PEntityOfEntIndex(i);
@@ -797,10 +797,11 @@ CNavArea *CNavMesh::GetNavArea( edict_t *pEntity, int nFlags, float flBeneathLim
 		return NULL;
 
 	IPlayerInfo *pBCC = playerinfomanager->GetPlayerInfo(pEntity);
-	Vector testPos = pBCC->GetAbsOrigin();
+	Vector testPos = pEntity->GetCollideable()->GetCollisionOrigin();
 
 	float flStepHeight = 1e-3;
-	if ( pBCC )
+	bool isPlayer = pEntity->m_EdictIndex < gpGlobals->maxClients;
+	if ( isPlayer )
 	{
 		/**
 		 * TODO
@@ -831,26 +832,21 @@ CNavArea *CNavMesh::GetNavArea( edict_t *pEntity, int nFlags, float flBeneathLim
 		CNavArea *pArea = (*areaVector)[ it ];
 
 		// check if position is within 2D boundaries of this area
-		if ( !pArea->IsOverlapping( testPos ) )
-			continue;
-
+		if ( !pArea->IsOverlapping( testPos )
 		// don't consider blocked areas
-		if ( bSkipBlockedAreas && pArea->IsBlocked( pBCC->GetTeamIndex() ) )
+				|| ( bSkipBlockedAreas && isPlayer
+						&& pArea->IsBlocked( pBCC->GetTeamIndex() ) ))
 			continue;
 
 		// project position onto area to get Z
 		float z = pArea->GetZ( testPos );
 
 		// if area is above us, skip it
-		if ( z > testPos.z + flStepHeight )
-			continue;
-
+		if ( z > testPos.z + flStepHeight
 		// if area is too far below us, skip it
-		if ( z < testPos.z - flBeneathLimit )
-			continue;
-
+				|| z < testPos.z - flBeneathLimit
 		// if area is lower than the one we have, skip it
-		if ( z <= useZ )
+				|| z <= useZ )
 			continue;
 
 		use = pArea;
@@ -1052,14 +1048,13 @@ CNavArea *CNavMesh::GetNearestNavArea( edict_t *pEntity, int nFlags, float maxDi
 
 	// quick check
 	CNavArea *pClose = GetNavArea( pEntity, nFlags );
-	if ( pClose )
-		return pClose;
-
-	IPlayerInfo *player = playerinfomanager->GetPlayerInfo(pEntity);
-	return GetNearestNavArea(player->GetAbsOrigin(), maxDist,
+	return pClose ? pClose
+			: GetNearestNavArea(pEntity->GetCollideable()->GetCollisionOrigin(),
+			maxDist,
 			( nFlags & GETNAVAREA_CHECK_LOS ) != 0,
 			( nFlags & GETNAVAREA_CHECK_GROUND ) != 0,
-			player->GetTeamIndex());
+			pEntity->m_EdictIndex < gpGlobals->maxClients ? playerinfomanager->GetPlayerInfo(pEntity)->GetTeamIndex()
+					: TEAM_ANY);
 }
 
 
@@ -2060,7 +2055,7 @@ CON_COMMAND_F( nav_select_stairs, "Adds all stairway areas to the selected set",
 
 
 //--------------------------------------------------------------------------------------------------------------
-CON_COMMAND_F( nav_select_orphans, "Adds all orphan areas to the selected set (highlight a valid area first).", FCVAR_CHEAT )
+CON_COMMAND_F( nav_select_orphans, "Adds all orphan areas to the selected set (not reachable from spawn point).", FCVAR_CHEAT )
 {
 	if ( !UTIL_IsCommandIssuedByServerAdmin() )
 		return;
