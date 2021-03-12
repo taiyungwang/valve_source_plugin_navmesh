@@ -72,8 +72,9 @@ bool UTIL_IsCommandIssuedByServerAdmin() {
 	}
 	for (int i = 2; i < gpGlobals->maxClients; i++) {
 		edict_t* player = engine->PEntityOfEntIndex(i);
+		IPlayerInfo* info = playerinfomanager->GetPlayerInfo(player);
 		if (player != nullptr && !player->IsFree() && player->GetNetworkable() != nullptr
-				&& !playerinfomanager->GetPlayerInfo(player)->IsFakeClient()) {
+				&& info != nullptr && !info->IsFakeClient()) {
 			return false;
 		}
 	}
@@ -4729,7 +4730,6 @@ void CNavArea::MarkAsBlocked( int teamID, edict_t* blocker, bool bGenerateEvent 
 		wasBlocked |= m_isBlocked[ teamIdx ];
 		m_isBlocked[ teamIdx ] = true;
 	}
-	IPlayerInfo* player = playerinfomanager->GetPlayerInfo(blocker);
 	if ( !wasBlocked )
 	{
 		if ( bGenerateEvent )
@@ -4748,7 +4748,7 @@ void CNavArea::MarkAsBlocked( int teamID, edict_t* blocker, bool bGenerateEvent 
 			if ( blocker )
 			{
 				ConColorMsg(Color(0, 255, 128, 255), "%s %d blocked area %d\n",
-						player->GetName(), engine->IndexOfEdict(blocker),
+						blocker->GetClassName(), engine->IndexOfEdict(blocker),
 						GetID());
 			}
 			else
@@ -4758,21 +4758,17 @@ void CNavArea::MarkAsBlocked( int teamID, edict_t* blocker, bool bGenerateEvent 
 		}
 		TheNavMesh->OnAreaBlocked( this );
 	}
-	else
+	else if ( nav_debug_blocked.GetBool() )
 	{
-		if ( nav_debug_blocked.GetBool() )
+		if ( blocker )
 		{
-			if ( blocker )
-			{
-				ConColorMsg(Color(0, 255, 128, 255),
-						"DUPE: %s %d blocked area %d\n", player->GetName(), engine->IndexOfEdict(
-						blocker), GetID()
-			);
-			}
-			else
-			{
-				ConColorMsg( Color( 0, 255, 128, 255 ), "DUPE: non-entity blocked area %d\n", GetID() );
-			}
+			ConColorMsg(Color(0, 255, 128, 255),
+					"DUPE: %s %d blocked area %d\n", blocker->GetClassName(), engine->IndexOfEdict(
+					blocker), GetID());
+		}
+		else
+		{
+			ConColorMsg( Color( 0, 255, 128, 255 ), "DUPE: non-entity blocked area %d\n", GetID() );
 		}
 	}
 }
