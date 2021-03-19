@@ -897,7 +897,7 @@ CNavArea *CNavMesh::GetNearestNavArea( const Vector &pos, float maxDist, bool ch
 	Vector source;
 	source.x = pos.x;
 	source.y = pos.y;
-	if ( GetGroundHeight( pos, &source.z ) == false )
+	if ( !GetGroundHeight( pos, &source.z ) )
 	{
 		if ( !checkGround )
 		{
@@ -1340,7 +1340,7 @@ public:
 	}
 };
 
-bool CNavMesh::GetGroundHeight( const Vector &pos, float *height, Vector *normal ) const
+bool CNavMesh::GetGroundHeight( const Vector &pos, float *height, Vector *normal )
 {
 	VPROF( "CNavMesh::GetGroundHeight" );
 
