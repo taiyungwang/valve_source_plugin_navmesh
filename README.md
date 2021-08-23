@@ -1,5 +1,5 @@
 # Valve Source Navigation Mesh for Plugins
-This is a refactor of the Valve Source navigation mesh code from [Valve's SDK](https://github.com/alliedmodders/hl2sdk) to allow for it to be used on a Valve Source Plugin. This allows a developer to create bots against mods or games that do not have bot support without having to create a new navigation system.  
+This is a refactor of the Valve Source navigation mesh code from [Valve's SDK](https://github.com/alliedmodders/hl2sdk) to allow for it to be used on a [Valve Source Server Plugin](https://developer.valvesoftware.com/wiki/Server_plugins). This allows a developer to create bots against mods or games that do not have bot support without having to create a new navigation system.  
 
 A sample plugin is provided with the code base as an example of how to build and use the nav mesh with a Valve Source Plugin.  Building the sample requires [CMake](https://cmake.org/) and a copy of Valve's Source SDK.  While the compilation of the test plugin should work against all supported platforms, it was only tested against LINUX.
 
