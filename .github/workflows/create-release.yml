@@ -15,7 +15,7 @@ jobs:
         with:
           path: valve_source_plugin_navmesh    
       - name: Checkout and Build project 
-        uses: ./.github/actions/build
+        uses: ./valve_source_plugin_navmesh/.github/actions/build
         with:
           repo-path: valve_source_plugin_navmesh            
       - name: Create Release
