@@ -21,6 +21,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - uses: actions/checkout@v2
+      with:
+        path: valve_source_plugin_navmesh
     - name: Checkout and Build project 
       uses: ./.github/actions/build
         
