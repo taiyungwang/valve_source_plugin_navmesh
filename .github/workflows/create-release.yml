@@ -11,10 +11,8 @@ jobs:
     name: Upload Release Asset
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Build project # This would actually build your project, using zip for an example artifact
-        uses: ./.github/workflows/cmake
+      - name: Checkout and Build project 
+        uses: ./.github/actions/build
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
