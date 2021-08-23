@@ -13,6 +13,8 @@ jobs:
     steps:
       - name: Checkout and Build project 
         uses: ./.github/actions/build
+        with:
+          repo-path: valve_source_plugin_navmesh            
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
