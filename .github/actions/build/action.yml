@@ -3,11 +3,7 @@ description: 'Builds the Nav Mesh Project'
 
 runs:
   using: "composite"
-    steps:
-    - uses: actions/checkout@v2          
-      with:
-        path: valve_source_plugin_navmesh
-        
+    steps:        
     - name: Checkout HL2SDK from Allied Modders
       uses: actions/checkout@v2
       with:
