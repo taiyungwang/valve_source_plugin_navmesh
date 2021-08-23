@@ -70,9 +70,7 @@ endif (NOT DEFINED src_dir)
 
 set(PLUGIN_NAME plugin_navmesh)
 
-add_library(public STATIC ${HL2SDK_DIR}/public/collisionutils.cpp)
-file(GLOB TIER1_SRC ${HL2SDK_DIR}/tier1/*.cpp)
-add_library(tier1 ${TIER1_SRC})
+
 
 add_subdirectory(${PROJECT_SOURCE_DIR}/util)
 add_subdirectory(${PROJECT_SOURCE_DIR}/nav_mesh)
