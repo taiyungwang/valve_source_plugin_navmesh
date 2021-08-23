@@ -3,7 +3,7 @@ description: 'Builds the Nav Mesh Project'
 
 runs:
   using: "composite"
-    steps:        
+  steps:
     - name: Checkout HL2SDK from Allied Modders
       uses: actions/checkout@v2
       with:
