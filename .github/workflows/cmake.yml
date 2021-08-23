@@ -27,7 +27,7 @@ jobs:
     - name: Checkout and Build project 
       uses: ./valve_source_plugin_navmesh/.github/actions/build
       with:
-        path: valve_source_plugin_navmesh
+        repo-path: valve_source_plugin_navmesh
         
     - name: Test
       working-directory: ${{github.workspace}}/build
