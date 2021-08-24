@@ -24,6 +24,7 @@ runs:
       env: # specify compiler
         CC: clang
         CXX: clang++
+        BUILD_TYPE: Release        
       shell: bash
 
     - name: Build
