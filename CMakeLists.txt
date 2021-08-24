@@ -34,7 +34,7 @@ endif (${UNIX})
 
 #compiler specific settings
 if (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU" OR ${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
-	set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++14")
+	set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 	if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
 		add_definitions(-DCOMPILER_GCC -DGNUC)
 	else()
