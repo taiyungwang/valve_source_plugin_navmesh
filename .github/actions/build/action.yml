@@ -13,6 +13,9 @@ runs:
         repository: alliedmodders/hl2sdk      
         ref: sdk2013
         path: hl2sdk
+    - name: debugging
+      run: uname -a
+      shell: bash
     - name: Install CxxTest and Clang
       run: sudo apt-get install cxxtest clang gcc-multilib g++-multilib libc6-dev-i386
       shell: bash
