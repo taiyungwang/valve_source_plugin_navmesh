@@ -14,7 +14,7 @@ runs:
         ref: sdk2013
         path: hl2sdk
     - name: Install CxxTest and Clang
-      run: sudo apt-get install cxxtest clang gcc-multilib g++-multilib libc6-dev-i386
+      run: sudo apt-get install build-essential cxxtest clang gcc-multilib g++-multilib libc6-dev-i386
       shell: bash
       
     - name: Configure CMake
