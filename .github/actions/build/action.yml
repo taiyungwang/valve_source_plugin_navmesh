@@ -10,7 +10,7 @@ runs:
     - name: Checkout HL2SDK from Allied Modders
       uses: actions/checkout@v2
       with:
-        repository: alliedmodders/hl2sdk      
+        repository: taiyungwang/hl2sdk      
         ref: sdk2013
         path: hl2sdk
     - name: Install CxxTest and Clang
