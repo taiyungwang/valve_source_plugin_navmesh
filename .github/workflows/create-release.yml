@@ -16,9 +16,6 @@ jobs:
           path: valve_source_plugin_navmesh    
       - name: Checkout and Build project 
         uses: ./valve_source_plugin_navmesh/.github/actions/build
-        env:
-          CC: clang
-          CXX: clang++        
         with:
           repo-path: valve_source_plugin_navmesh
       - name: Create Release
