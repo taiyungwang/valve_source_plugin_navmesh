@@ -33,6 +33,9 @@ CGlobalVars *gpGlobals = nullptr;
 EntityClassManager *classManager = nullptr;
 CNavMesh* TheNavMesh = nullptr;
 bool navMeshLoadAttempted;
+
+ConVar r_visualizetraces("r_visualizetraces", "0", FCVAR_CHEAT);
+
 //
 // The plugin is a static singleton that is exported as an interface
 //
