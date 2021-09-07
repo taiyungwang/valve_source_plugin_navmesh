@@ -36,6 +36,22 @@ public:
 		return get<short>("m_nModelIndex");
 	}
 
+	int getHealth() {
+		return get<int>("m_iHealth");
+	}
+
+	bool isUnderWater() {
+		return get<int>("m_nWaterLevel") > 1;
+	}
+
+	Vector getVelocity() {
+		return get<Vector>("m_vecVelocity[0]");
+	}
+
+	edict_t* getGroundEntity() {
+		return classDef->getEntityVar("m_hGroundEntity").getEntity(ent);
+	}
+
 	bool isDestroyedOrUsed();
 
 protected:

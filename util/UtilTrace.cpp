@@ -236,12 +236,12 @@ void UTIL_TraceHull(const Vector &vecAbsStart, const Vector &vecAbsEnd,
 	if (!draw && !r_visualizetraces.GetBool()) {
 		return;
 	}
-	QAngle angle;
-	VectorAngles((vecAbsEnd - vecAbsStart).Normalized(), angle);
-	debugoverlay->AddLineOverlay(ptr->endpos, vecAbsEnd, 255, 255, 255, true, -1.0f);
-	debugoverlay->AddLineOverlay(vecAbsStart, ptr->endpos, 0, 0, 255 , true, -1.0f);
+	QAngle angle(0, 0, 0);
+	int color = ptr->startsolid || ptr->allsolid ? 0 : 255;
+	color = ptr->DidHit() ? 0 : 255;
+	debugoverlay->AddLineOverlay(vecAbsStart, ptr->endpos, 255, color, color, true, -1.0f);
 	debugoverlay->AddBoxOverlay(vecAbsStart, hullMin, hullMax, angle,
-			255, 255, 255, true, -1.0f);
+			255, color, color, true, -1.0f);
 	debugoverlay->AddBoxOverlay(ptr->endpos, hullMin, hullMax, angle,
 			255, ptr->DidHit() ? 0 : 255, 0, true, -1.0f);
 }

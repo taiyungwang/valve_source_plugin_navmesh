@@ -13,6 +13,7 @@ set (mods "tf;dod;hl2mp")
 if (CMAKE_BUILD_TYPE MATCHES Debug)
     add_definitions(-D_DEBUG)
 endif()
+set (CMAKE_CXX_STANDARD 11)
 if (${UNIX})
 	set (SRC_HOME $ENV{HOME})
 	set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lm")
@@ -33,8 +34,8 @@ else ()
 endif (${UNIX})
 
 #compiler specific settings
-if (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU" OR ${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
-	set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++14")
+if (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU" OR ${CMAKE_CXX_COMPILER_ID} MATCHES "Clang")
+	set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 	if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
 		add_definitions(-DCOMPILER_GCC -DGNUC)
 	else()
@@ -45,6 +46,17 @@ if (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU" OR ${CMAKE_CXX_COMPILER_ID} STREQUAL
 	add_definitions(-D_POSIX -DPOSIX -DGNUC -DNO_HOOK_MALLOC -DNO_MALLOC_OVERRIDE)
 	set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-non-virtual-dtor -Wno-invalid-offsetof" )
 	add_definitions(-DSWDS -D_finite=finite -Dstricmp=strcasecmp  -Dstrnicmp=strncasecmp -D_vsnprintf=vsnprintf -D_alloca=alloca)	
+else() #MSVC
+	add_compile_options(
+		$<$<CONFIG:>:/MT> #---------|
+		$<$<CONFIG:Debug>:/MTd> #---|-- Statically link the runtime libraries
+		$<$<CONFIG:Release>:/MT> #--|
+		-arch:SSE -GS- -TP -W4 -fp:fast -GF -Zc:forScope -RTC1 -GR -Gd -Oy- -Fa -Fo -Fp -MP -Od -TP
+	)
+	string(REPLACE "/EHsc" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+	add_link_options(/NODEFAULTLIB:libc /NODEFAULTLIB:libcd /NODEFAULTLIB:libcmtd /SUBSYSTEM:WINDOWS /SAFESEH:NO)
+	add_definitions(-DCOMPILER_MSVC -DCOMPILER_MSVC32 -D_CRT_NO_VA_START_VALIDATION -D_CRT_SECURE_NO_DEPRECATE 
+		-D_CRT_NONSTDC_NO_DEPRECATE)	
 endif (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU" OR ${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
 SET( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${ARCH_FLAGS}" )
 SET( CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} ${ARCH_FLAGS}" )
@@ -64,15 +76,12 @@ foreach(GAME ${games})
 endforeach(GAME ${games})
 link_directories("${src_dir}/bin" ${HL2SDK_LIBS})	
 if (NOT DEFINED src_dir)
-    message ("No supported mods found.")
-    return()
+    message (WARNING "No supported mods found.")
 endif (NOT DEFINED src_dir)
 
 set(PLUGIN_NAME plugin_navmesh)
 
-add_library(public STATIC ${HL2SDK_DIR}/public/collisionutils.cpp)
-file(GLOB TIER1_SRC ${HL2SDK_DIR}/tier1/*.cpp)
-add_library(tier1 ${TIER1_SRC})
+
 
 add_subdirectory(${PROJECT_SOURCE_DIR}/util)
 add_subdirectory(${PROJECT_SOURCE_DIR}/nav_mesh)

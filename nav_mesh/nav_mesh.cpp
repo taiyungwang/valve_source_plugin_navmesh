@@ -765,16 +765,12 @@ CNavArea *CNavMesh::GetNavArea( const Vector &pos, float beneathLimit ) const
 			// project position onto area to get Z
 			float z = area->GetZ( testPos );
 
-			// if area is above us, skip it
-			if (z > testPos.z)
-				continue;
-
-			// if area is too far below us, skip it
-			if (z < pos.z - beneathLimit)
-				continue;
-
-			// if area is higher than the one we have, use this instead
-			if (z > useZ)
+			// don't use area  above us
+			if (z <= testPos.z
+			// don't use area is too far below us
+					&& z >= pos.z - beneathLimit
+					// if area is higher than the one we have, use this instead
+					&& z > useZ)
 			{
 				use = area;
 				useZ = z;
@@ -946,14 +942,13 @@ CNavArea *CNavMesh::GetNearestNavArea( const Vector &pos, float maxDist, bool ch
 
 			for( int y = originY - shift; y <= originY + shift; ++y )
 			{
-				if ( y < 0 || y >= m_gridSizeY )
-					continue;
+				if ( y < 0 || y >= m_gridSizeY
 
 				// only check these areas if we're on the outer edge of our spiral
-				if ( x > originX - shift &&
+						|| (x > originX - shift &&
 					 x < originX + shift &&
 					 y > originY - shift &&
-					 y < originY + shift )
+					 y < originY + shift) )
 					continue;
 
 				NavAreaVector *areaVector = &m_grid[ x + y*m_gridSizeX ];
@@ -966,7 +961,9 @@ CNavArea *CNavMesh::GetNearestNavArea( const Vector &pos, float maxDist, bool ch
 					// skip if we've already visited this area
 					if ( area->m_nearNavSearchMarker == searchMarker
 							// don't consider blocked areas
-							|| area->IsBlocked( team ) )
+							|| area->IsBlocked( team )
+							// don't consider area that is overhead
+							|| area->GetCenter().z > - pos.z > HumanHeight)
 						continue;
 
 					// mark as visited
@@ -3226,8 +3223,7 @@ void CNavMesh::BeginVisibilityComputations( void )
 
 	FOR_EACH_VEC( TheNavAreas, it )
 	{
-		CNavArea *area = TheNavAreas[ it ];
-		area->ResetPotentiallyVisibleAreas();
+		TheNavAreas[ it ]->ResetPotentiallyVisibleAreas();
 	}
 }
 

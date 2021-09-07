@@ -4241,9 +4241,7 @@ void CNavArea::IncreaseDanger( int teamID, float amount )
 float CNavArea::GetDanger( int teamID )
 {
 	DecayDanger();
-
-	int teamIdx = teamID % MAX_NAV_TEAMS;
-	return m_danger[ teamIdx ];
+	return m_danger[ teamID % MAX_NAV_TEAMS ];
 }
 
 
@@ -4344,22 +4342,16 @@ CON_COMMAND_F( nav_update_lighting, "Recomputes lighting values", FCVAR_CHEAT )
 	int numComputed = 0;
 	if ( args.ArgC() == 2 )
 	{
-		int areaID = atoi( args[1] );
-		CNavArea *area = TheNavMesh->GetNavAreaByID( areaID );
-		if ( area )
-		{
-			if ( area->ComputeLighting() )
-			{
-				++numComputed;
-			}
+		CNavArea *area = TheNavMesh->GetNavAreaByID( atoi( args[1] ) );
+		if ( area && area->ComputeLighting() ) {
+			++numComputed;
 		}
 	}
 	else
 	{
 		FOR_EACH_VEC( TheNavAreas, index )
 		{
-			CNavArea *area = TheNavAreas[ index ];
-			if ( area->ComputeLighting() )
+			if ( TheNavAreas[ index ]->ComputeLighting() )
 			{
 				++numComputed;
 			}
@@ -4464,8 +4456,7 @@ void CNavArea::RaiseCorner( NavCornerType corner, int amount, bool raiseAdjacent
 					areaPos = area->GetCorner( NavCornerType(i) );
 					if ( areaPos.DistTo( cornerPos ) < tolerance )
 					{
-						float heightDiff = (cornerPos.z + amount ) - areaPos.z;
-						area->RaiseCorner( NavCornerType(i), heightDiff, false );
+						area->RaiseCorner( NavCornerType(i), (cornerPos.z + amount ) - areaPos.z, false );
 					}
 				}
 			}
@@ -4520,16 +4511,7 @@ float FindGroundZFromPoint( const Vector& end, const Vector& start )
 	z = point.z + step.z;
 	point = end;
 	point.z = z;
-	if ( TheNavMesh->GetGroundHeight( point, &z ) )
-	{
-		point.z = z;
-	}
-	else
-	{
-		point.z -= step.z;
-	}
-
-	return point.z;
+	return TheNavMesh->GetGroundHeight( point, &z ) ? z : (point.z - step.z);
 }
 
 
