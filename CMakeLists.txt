@@ -29,7 +29,6 @@ if (${UNIX})
 	link_directories(${steam_root}/ubuntu12_32/steam-runtime/i386/usr/lib/i386-linux-gnu ${steam_root}/ubuntu12_32)
 	set( UNDEF "-Usprintf -Ustrncpy -UPROTECTED_THINGS_ENABLE" )
 else ()
-	set (LEGACY_STDIO legacy_stdio_definitions)
 	add_definitions(-DWIN32 -D_WIN32 -DWINDOWS)
 endif (${UNIX})
 

@@ -1,4 +1,5 @@
 set(CMAKE_SHARED_LIBRARY_PREFIX "")
+set(CMAKE_STATIC_LIBRARY_PREFIX "")
 add_library(public STATIC ${HL2SDK_DIR}/public/collisionutils.cpp)
 add_library(${PLUGIN_NAME} SHARED  VSPlugin.cpp)
 target_link_libraries(${PLUGIN_NAME}  
