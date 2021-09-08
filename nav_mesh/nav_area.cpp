@@ -3553,7 +3553,7 @@ inline void CNavArea::SetClearedTimestamp( int teamID )
 
 
 //--------------------------------------------------------------------------------------------------------------
-inline bool CNavArea::IsDamaging( void ) const
+bool CNavArea::IsDamaging( void ) const
 {
 	return ( playerinfomanager->GetGlobalVars()->tickcount <= m_damagingTickCount );
 }
