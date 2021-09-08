@@ -44,7 +44,7 @@ if (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU" OR ${CMAKE_CXX_COMPILER_ID} MATCHES 
 	if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
 		add_definitions(-DCOMPILER_GCC -DGNUC)
 	else()
-		add_definitions(-D__clang__ )
+		add_definitions(-D__clang__)
 		set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-dangling-else -Wno-c++11-narrowing -Wno-inconsistent-missing-override")
 	endif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
 	set( ARCH_FLAGS "-mtune=i686 -march=pentium3 -mmmx -m32 -fpermissive" )
@@ -59,7 +59,9 @@ else() #MSVC
 		-arch:SSE -GS- -TP -W4 -fp:fast -GF -Zc:forScope -RTC1 -GR -Gd -Oy- -Fa -Fo -Fp -MP -Od -TP
 	)
 	string(REPLACE "/EHsc" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-	add_link_options(/NODEFAULTLIB:libc /NODEFAULTLIB:libcd /NODEFAULTLIB:libcmtd /SUBSYSTEM:WINDOWS /SAFESEH:NO)
+	add_link_options(
+		/NODEFAULTLIB:libcmtd
+		/SAFESEH:NO)
 	add_definitions(-DCOMPILER_MSVC -DCOMPILER_MSVC32 -D_CRT_NO_VA_START_VALIDATION -D_CRT_SECURE_NO_DEPRECATE 
 		-D_CRT_NONSTDC_NO_DEPRECATE)
 	set (LEGACY_STDIO legacy_stdio_definitions)
@@ -68,24 +70,7 @@ SET( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${ARCH_FLAGS}" )
 SET( CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} ${ARCH_FLAGS}" )
 
 include_directories(${PROJECT_SOURCE_DIR} ${HL2SDK_DIR}/common utils/common ${HL2SDK_DIR}/public ${HL2SDK_DIR}/public/mathlib ${HL2SDK_DIR}/public/tier0 ${HL2SDK_DIR}/public/tier1 ${HL2SDK_DIR}/public/game/server ${HL2SDK_DIR}/public/engine ${HL2SDK_DIR}/game/shared ${HL2SDK_DIR}/game/server)
-
-#find installed mods on system.
-set( steam_dir steamapps/common )
-FILE(GLOB games ${steam_root}/${steam_dir}/*)
-foreach(GAME ${games})
-	foreach(mod ${mods})
-		if (EXISTS ${GAME}/${mod})
-			set( src_dir "${GAME}" )
-			list(APPEND mod_dirs "${GAME}/${mod}")
-		endif (EXISTS ${GAME}/${mod})
-	endforeach(mod ${mods})
-endforeach(GAME ${games})
 link_directories("${src_dir}/bin" ${HL2SDK_LIBS})	
-if (NOT DEFINED src_dir)
-    message (WARNING "No supported mods found.")
-endif (NOT DEFINED src_dir)
-
-set(PLUGIN_NAME plugin_navmesh)
 
 add_subdirectory(${PROJECT_SOURCE_DIR}/util)
 add_subdirectory(${PROJECT_SOURCE_DIR}/nav_mesh)

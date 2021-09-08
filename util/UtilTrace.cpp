@@ -213,7 +213,7 @@ void UTIL_Trace(const Ray_t& ray, unsigned int mask, const ITraceFilter& filter,
 	}
 }
 
-inline void UTIL_TraceLine(const Vector& vecAbsStart, const Vector& vecAbsEnd,
+void UTIL_TraceLine(const Vector& vecAbsStart, const Vector& vecAbsEnd,
 		unsigned int mask, ITraceFilter *pFilter, trace_t *ptr) {
 	Ray_t ray;
 	ray.Init(vecAbsStart, vecAbsEnd);
