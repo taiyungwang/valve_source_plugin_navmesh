@@ -5,8 +5,9 @@ project (plugin_navmesh)
 #OS specific settings
 add_definitions(-DRAD_TELEMETRY_DISABLED)
 
+set(DRIVE c CACHE STRING "User specified drive for Windows")
 set (SRC_HOME $ENV{HOMEPATH})
-set( steam_root "c:/Program Files (x86)/steam" )
+set( steam_root "${DRIVE}:/Program Files (x86)/steam" )
 set(HL2SDK_DIR "${PROJECT_SOURCE_DIR}/../hl2sdk")
 set (HL2SDK_LIBS ${HL2SDK_DIR}/lib/public)
 set (mods "tf;dod;hl2mp")
