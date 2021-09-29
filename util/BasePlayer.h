@@ -28,6 +28,10 @@ public:
 		return get<int>("m_fFlags");
 	}
 
+	Vector getVelocity() {
+		return get<Vector>("m_vecVelocity[0]");
+	}
+
 protected:
 	BasePlayer(const char* className, edict_t* ent): BaseEntity(className, ent) {
 	}
