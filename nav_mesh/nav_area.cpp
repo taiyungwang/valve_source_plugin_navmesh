@@ -807,11 +807,9 @@ void CNavArea::ConnectTo( CNavArea *area, NavDirType dir )
  */
 void CNavArea::ConnectTo( CNavLadder *ladder )
 {
-	float center = (ladder->m_top.z + ladder->m_bottom.z) * 0.5f;
-
 	Disconnect( ladder ); // just in case
 
-	if ( GetCenter().z > center )
+	if ( GetCenter().z > (ladder->m_top.z + ladder->m_bottom.z) * 0.5f )
 	{
 		AddLadderDown( ladder );
 	}

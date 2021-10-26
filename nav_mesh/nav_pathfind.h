@@ -41,57 +41,50 @@ enum RouteType
 class ShortestPathCost
 {
 public:
-	ShortestPathCost(int team): team(team) {
-	}
-
-	float operator()(CNavArea *area, CNavArea *fromArea,
-			const CNavLadder *ladder, const CFuncElevator *elevator,
-			float length) const
+	float operator() ( CNavArea *area, CNavArea *fromArea, const CNavLadder *ladder, const CFuncElevator *elevator, float length ) const
 	{
 		if ( fromArea == NULL )
 		{
 			// first area in path, no cost
 			return 0.0f;
 		}
-		// compute distance traveled along path so far
-		float dist;
-
-		if ( ladder )
-		{
-			dist = ladder->m_length;
-		}
-		else if ( length > 0.0 )
-		{
-			dist = length;
-		}
 		else
 		{
-			dist = ( area->GetCenter() - fromArea->GetCenter() ).Length();
-		}
+			// compute distance traveled along path so far
+			float dist;
 
-		float cost = dist + fromArea->GetCostSoFar();
-		if (team > 0) {
-			cost += area->GetDanger(team);
-		}
+			if ( ladder )
+			{
+				dist = ladder->m_length;
+			}
+			else if ( length > 0.0 )
+			{
+				dist = length;
+			}
+			else
+			{
+				dist = ( area->GetCenter() - fromArea->GetCenter() ).Length();
+			}
 
-		// if this is a "crouch" area, add penalty
-		if ( area->GetAttributes() & NAV_MESH_CROUCH )
-		{
-			const float crouchPenalty = 20.0f;		// 10
-			cost += crouchPenalty * dist;
-		}
+			float cost = dist + fromArea->GetCostSoFar();
 
-		// if this is a "jump" area, add penalty
-		if ( area->GetAttributes() & NAV_MESH_JUMP )
-		{
-			const float jumpPenalty = 5.0f;
-			cost += jumpPenalty * dist;
-		}
+			// if this is a "crouch" area, add penalty
+			if ( area->GetAttributes() & NAV_MESH_CROUCH )
+			{
+				const float crouchPenalty = 20.0f;		// 10
+				cost += crouchPenalty * dist;
+			}
 
-		return cost;
+			// if this is a "jump" area, add penalty
+			if ( area->GetAttributes() & NAV_MESH_JUMP )
+			{
+				const float jumpPenalty = 5.0f;
+				cost += jumpPenalty * dist;
+			}
+
+			return cost;
+		}
 	}
-private:
-	int team;
 };
 
 //--------------------------------------------------------------------------------------------------------------
@@ -108,7 +101,8 @@ private:
  */
 #define IGNORE_NAV_BLOCKERS true
 template< typename CostFunctor >
-bool NavAreaBuildPath( CNavArea *startArea, CNavArea *goalArea, const Vector *goalPos, const CostFunctor &costFunc, CNavArea **closestArea = NULL, float maxPathLength = 0.0f, int teamID = TEAM_ANY, bool ignoreNavBlockers = false )
+bool NavAreaBuildPath( CNavArea *startArea, CNavArea *goalArea, const Vector *goalPos,
+		const CostFunctor &costFunc, CNavArea **closestArea = NULL, float maxPathLength = 0.0f, int teamID = TEAM_ANY, bool ignoreNavBlockers = false )
 {
 	VPROF_BUDGET( "NavAreaBuildPath", "NextBotSpiky" );
 
@@ -324,14 +318,7 @@ bool NavAreaBuildPath( CNavArea *startArea, CNavArea *goalArea, const Vector *go
 				}
 
 				newArea = elevatorAreas[ searchIndex++ ].area;
-				if ( newArea->GetCenter().z > area->GetCenter().z )
-				{
-					how = GO_ELEVATOR_UP;
-				}
-				else
-				{
-					how = GO_ELEVATOR_DOWN;
-				}
+				how = newArea->GetCenter().z > area->GetCenter().z ? GO_ELEVATOR_UP : GO_ELEVATOR_DOWN;
 
 				length = -1.0f;
 			}
@@ -339,13 +326,10 @@ bool NavAreaBuildPath( CNavArea *startArea, CNavArea *goalArea, const Vector *go
 
 			// don't backtrack
 			Assert( newArea );
-			if ( newArea == area->GetParent() )
-				continue;
-			if ( newArea == area ) // self neighbor?
-				continue;
-
-			// don't consider blocked areas
-			if ( newArea->IsBlocked( teamID, ignoreNavBlockers ) )
+			if ( newArea == area->GetParent()
+				|| newArea == area // self neighbor?
+				// don't consider blocked areas
+				|| newArea->IsBlocked( teamID, ignoreNavBlockers ) )
 				continue;
 
 			float newCostSoFar = costFunc( newArea, area, ladder, elevator, length );
@@ -368,15 +352,13 @@ bool NavAreaBuildPath( CNavArea *startArea, CNavArea *goalArea, const Vector *go
 			// Make sure that any jump to a new area incurs some pathfinsing
 			// cost, to avoid us spinning our wheels over insignificant cost
 			// benefit, floating point precision bug, or busted cost functor.
-			float minNewCostSoFar = area->GetCostSoFar() * 1.00001f + 0.00001f;
-			newCostSoFar = Max( newCostSoFar, minNewCostSoFar );
+			newCostSoFar = Max( newCostSoFar, area->GetCostSoFar() * 1.00001f + 0.00001f );
 				
 			// stop if path length limit reached
 			if ( bHaveMaxPathLength )
 			{
 				// keep track of path length so far
-				float deltaLength = ( newArea->GetCenter() - area->GetCenter() ).Length();
-				float newLengthSoFar = area->GetPathLengthSoFar() + deltaLength;
+				float newLengthSoFar = area->GetPathLengthSoFar() + ( newArea->GetCenter() - area->GetCenter() ).Length();
 				if ( newLengthSoFar > maxPathLength )
 					continue;
 				
@@ -388,39 +370,36 @@ bool NavAreaBuildPath( CNavArea *startArea, CNavArea *goalArea, const Vector *go
 				// this is a worse path - skip it
 				continue;
 			}
+			// compute estimate of distance left to go
+			float distSq = ( newArea->GetCenter() - actualGoalPos ).LengthSqr();
+			float newCostRemaining = ( distSq > 0.0 ) ? FastSqrt( distSq ) : 0.0 ;
+
+			// track closest area to goal in case path fails
+			if ( closestArea && newCostRemaining < closestAreaDist )
+			{
+				*closestArea = newArea;
+				closestAreaDist = newCostRemaining;
+			}
+
+			newArea->SetCostSoFar( newCostSoFar );
+			newArea->SetTotalCost( newCostSoFar + newCostRemaining );
+
+			if ( newArea->IsClosed() )
+			{
+				newArea->RemoveFromClosedList();
+			}
+
+			if ( newArea->IsOpen() )
+			{
+				// area already on open list, update the list order to keep costs sorted
+				newArea->UpdateOnOpenList();
+			}
 			else
 			{
-				// compute estimate of distance left to go
-				float distSq = ( newArea->GetCenter() - actualGoalPos ).LengthSqr();
-				float newCostRemaining = ( distSq > 0.0 ) ? FastSqrt( distSq ) : 0.0 ;
-
-				// track closest area to goal in case path fails
-				if ( closestArea && newCostRemaining < closestAreaDist )
-				{
-					*closestArea = newArea;
-					closestAreaDist = newCostRemaining;
-				}
-				
-				newArea->SetCostSoFar( newCostSoFar );
-				newArea->SetTotalCost( newCostSoFar + newCostRemaining );
-
-				if ( newArea->IsClosed() )
-				{
-					newArea->RemoveFromClosedList();
-				}
-
-				if ( newArea->IsOpen() )
-				{
-					// area already on open list, update the list order to keep costs sorted
-					newArea->UpdateOnOpenList();
-				}
-				else
-				{
-					newArea->AddToOpenList();
-				}
-
-				newArea->SetParent( area, how );
+				newArea->AddToOpenList();
 			}
+
+			newArea->SetParent( area, how );
 		}
 
 		// we have searched this area
@@ -567,11 +546,7 @@ void SearchSurroundingAreas( CNavArea *startArea, const Vector &startPos, Functo
 					const NavConnectVector *list = area->GetIncomingConnections( (NavDirType)dir );
 					FOR_EACH_VEC( (*list), it )
 					{
-						NavConnect connect = (*list)[ it ];
-						if (connect.area->IsConnected(area,
-								OppositeDirection(static_cast<NavDirType>(dir)))) {
-							AddAreaToOpenList( connect.area, area, startPos, maxRange );
-						}
+						AddAreaToOpenList( (*list)[ it ].area, area, startPos, maxRange );
 					}
 				}
 			}
@@ -673,7 +648,6 @@ public:
 			area->Mark();
 			area->SetTotalCost( 0.0f );
 			area->SetParent( priorArea );
-
 			// compute approximate travel distance from start area of search
 			area->SetCostSoFar( priorArea ?
 					priorArea->GetCostSoFar()
@@ -811,8 +785,7 @@ class FarAwayFunctor
 public:
 	float operator() ( CNavArea *area, CNavArea *fromArea, const CNavLadder *ladder )
 	{
-		return area == fromArea ?
-				9999999.9f
+		return area == fromArea ? 9999999.9f
 				: 1.0f/(fromArea->GetCenter() - area->GetCenter()).Length();
 	}
 };
@@ -973,6 +946,5 @@ void SelectSeparatedShuffleSet( int maxCount, float minSeparation, const CUtlVec
 		}
 	}
 }
-
 
 #endif // _NAV_PATHFIND_H_

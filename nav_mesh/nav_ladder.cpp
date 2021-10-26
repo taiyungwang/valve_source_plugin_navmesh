@@ -123,6 +123,7 @@ void CNavLadder::ConnectTo( CNavArea *area )
 
 		if ( m_dir == dir )
 		{
+			Warning("Bots may not be able to find exit path to \"behind areas\" when climbing ladders.\n");
 			m_topBehindArea = area;
 		}
 		else if ( OppositeDirection( m_dir ) == dir )
