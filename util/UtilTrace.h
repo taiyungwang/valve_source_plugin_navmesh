@@ -16,10 +16,10 @@ const Vector TRACE_MINS(-0.45, -0.45, 0);
 
 const Vector TRACE_MAXS(0.45, 0.45, 55);
 
+typedef bool (*ShouldHitFunc_t)(IHandleEntity *pHandleEntity,
+		int contentsMask);
+
 class CTraceFilterSimple: public CTraceFilter {
-private:
-	typedef bool (*ShouldHitFunc_t)(IHandleEntity *pHandleEntity,
-			int contentsMask);
 public:
 	// It does have a base, but we'll never network anything below here..
 
@@ -122,17 +122,7 @@ protected:
 
 };
 
-class FilterSelf: public FilterSelfAndTarget {
-public:
-	FilterSelf(const IHandleEntity *passentity1) :
-			FilterSelfAndTarget(passentity1, nullptr) {
-	}
-
-	// It does have a base, but we'll never network anything below here..
-	bool ShouldHitEntity(IHandleEntity *pHandleEntity, int contentsMask) {
-		return pHandleEntity != m_pPassEnt1;
-	}
-};
+edict_t *entityFromEntityHandle(const IHandleEntity *pHandleEntity);
 
 void UTIL_Trace(const Ray_t& ray, unsigned int mask, const ITraceFilter& filter,
 		trace_t *ptr);

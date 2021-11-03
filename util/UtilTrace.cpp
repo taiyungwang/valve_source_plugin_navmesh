@@ -20,7 +20,7 @@ extern IVDebugOverlay* debugoverlay;
 extern IEngineTrace *enginetrace;
 extern ConVar r_visualizetraces;
 
-inline edict_t *EntityFromEntityHandle(const IHandleEntity *pHandleEntity) {
+edict_t *entityFromEntityHandle(const IHandleEntity *pHandleEntity) {
 	return reinterpret_cast<IServerUnknown*>(const_cast<IHandleEntity*>(pHandleEntity))->GetNetworkable()->GetEdict();
 }
 
@@ -32,7 +32,7 @@ CTraceFilterSimple::CTraceFilterSimple(const IHandleEntity *passedict,
 }
 
 bool StandardFilterRules(IHandleEntity *pHandleEntity, int fContentsMask) {
-	edict_t *pCollide = EntityFromEntityHandle(pHandleEntity);
+	edict_t *pCollide = entityFromEntityHandle(pHandleEntity);
 	// Static prop case...
 	if (!pCollide)
 		return true;
@@ -136,8 +136,8 @@ bool PassServerEntityFilter( const IHandleEntity *pTouch, const IHandleEntity *p
 		return true;
 	if ( pTouch == pPass )
 		return false;
-	edict_t *pEntTouch = EntityFromEntityHandle( pTouch );
-	edict_t *pEntPass = EntityFromEntityHandle( pPass );
+	edict_t *pEntTouch = entityFromEntityHandle( pTouch );
+	edict_t *pEntPass = entityFromEntityHandle( pPass );
 	return !pEntTouch || !pEntPass || pEntTouch != pEntPass;
 }
 
@@ -149,7 +149,7 @@ bool CTraceFilterSimple::ShouldHitEntity(IHandleEntity *pHandleEntity,
 		return false;
 	}
 	// Don't test if the game code tells us we should ignore this collision...
-	edict_t *pEntity = EntityFromEntityHandle( pHandleEntity );
+	edict_t *pEntity = entityFromEntityHandle( pHandleEntity );
 	if (pEntity == nullptr) {
 		return false;
 	}
@@ -163,13 +163,13 @@ bool CTraceFilterSimple::ShouldHitEntity(IHandleEntity *pHandleEntity,
 bool CTraceFilterWalkableEntities::ShouldHitEntity(IHandleEntity *pServerEntity,
 		int contentsMask) {
 	return CTraceFilterNoNPCsOrPlayer::ShouldHitEntity(pServerEntity, contentsMask)
-		&& !IsEntityWalkable(EntityFromEntityHandle( pServerEntity ), m_flags );
+		&& !IsEntityWalkable(entityFromEntityHandle( pServerEntity ), m_flags );
 }
 
 bool CTraceFilterNoNPCsOrPlayer::ShouldHitEntity(IHandleEntity *pHandleEntity,
 		int contentsMask) {
 	if (CTraceFilterSimple::ShouldHitEntity(pHandleEntity, contentsMask)) {
-		edict_t *pEntity = EntityFromEntityHandle(pHandleEntity);
+		edict_t *pEntity = entityFromEntityHandle(pHandleEntity);
 		if (!pEntity)
 			return false;
 		/*
