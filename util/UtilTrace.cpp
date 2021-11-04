@@ -186,24 +186,6 @@ bool CTraceFilterNoNPCsOrPlayer::ShouldHitEntity(IHandleEntity *pHandleEntity,
 	return false;
 }
 
-FilterList& FilterList::add(edict_t* ignore) {
-	if (ignore != nullptr) {
-		this->ignore.AddToTail(ignore->GetIServerEntity());
-	}
-	return *this;
-}
-
-bool FilterList::ShouldHitEntity(IHandleEntity *pHandleEntity,
-		int contentsMask) {
-	FOR_EACH_LL(ignore, i) {
-		if (pHandleEntity == ignore[i]) {
-			return false;
-		}
-	}
-	return true;
-}
-
-
 void UTIL_Trace(const Ray_t& ray, unsigned int mask, const ITraceFilter& filter,
 		trace_t *ptr) {
 	enginetrace->TraceRay(ray, mask, const_cast<ITraceFilter*>(&filter), ptr);
