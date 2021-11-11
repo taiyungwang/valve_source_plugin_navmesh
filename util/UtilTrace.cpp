@@ -224,8 +224,10 @@ void UTIL_TraceHull(const Vector &vecAbsStart, const Vector &vecAbsEnd,
 	debugoverlay->AddLineOverlay(vecAbsStart, ptr->endpos, 255, color, color, true, -1.0f);
 	debugoverlay->AddBoxOverlay(vecAbsStart, hullMin, hullMax, angle,
 			255, color, color, true, -1.0f);
-	debugoverlay->AddBoxOverlay(ptr->endpos, hullMin, hullMax, angle,
-			255, ptr->DidHit() ? 0 : 255, 0, true, -1.0f);
+	if (!ptr->startsolid) {
+		debugoverlay->AddBoxOverlay(ptr->endpos, hullMin, hullMax, angle,
+				ptr->DidHit() ? 0 : 255, 255, 0, true, -1.0f);
+	}
 }
 
 void UTIL_TraceHull(const Vector &vecAbsStart,

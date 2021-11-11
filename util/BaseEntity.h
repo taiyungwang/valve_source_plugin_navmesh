@@ -45,7 +45,7 @@ public:
 	}
 
 	edict_t* getGroundEntity() {
-		return classDef->getEntityVar("m_hGroundEntity").getEntity(ent);
+		return getEntity("m_hGroundEntity");
 	}
 
 	bool isDestroyedOrUsed();
@@ -65,6 +65,10 @@ protected:
 	template<typename T>
 	T *getPtr(const char* name) {
 		return classDef->getEntityVar(name).getPtr<T>(ent);
+	}
+
+	edict_t* getEntity(const char *varName) {
+		return classDef->getEntityVar(varName).getEntity(ent);
 	}
 };
 
