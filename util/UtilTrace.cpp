@@ -181,7 +181,8 @@ bool CTraceFilterNoNPCsOrPlayer::ShouldHitEntity(IHandleEntity *pHandleEntity,
 		 */
 		extern CGlobalVars *gpGlobals;
 		extern IVEngineServer* engine;
-		return engine->IndexOfEdict(pEntity) > gpGlobals->maxClients; //TODO && !player->IsNPC()
+		return pEntity->m_EdictIndex > 0
+				&& engine->IndexOfEdict(pEntity) > gpGlobals->maxClients; //TODO && !player->IsNPC()
 	}
 	return false;
 }

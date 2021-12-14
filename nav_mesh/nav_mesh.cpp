@@ -796,7 +796,7 @@ CNavArea *CNavMesh::GetNavArea( edict_t *pEntity, int nFlags, float flBeneathLim
 	Vector testPos = pEntity->GetCollideable()->GetCollisionOrigin();
 
 	float flStepHeight = 1e-3;
-	bool isPlayer = pEntity->m_EdictIndex < gpGlobals->maxClients;
+	bool isPlayer = pEntity->m_EdictIndex > 0 && pEntity->m_EdictIndex <= gpGlobals->maxClients;
 	if ( isPlayer )
 	{
 		/**
@@ -1050,8 +1050,8 @@ CNavArea *CNavMesh::GetNearestNavArea( edict_t *pEntity, int nFlags, float maxDi
 			maxDist,
 			( nFlags & GETNAVAREA_CHECK_LOS ) != 0,
 			( nFlags & GETNAVAREA_CHECK_GROUND ) != 0,
-			pEntity->m_EdictIndex < gpGlobals->maxClients ? playerinfomanager->GetPlayerInfo(pEntity)->GetTeamIndex()
-					: TEAM_ANY);
+			pEntity->m_EdictIndex > 0 && pEntity->m_EdictIndex <= gpGlobals->maxClients
+				? playerinfomanager->GetPlayerInfo(pEntity)->GetTeamIndex() : TEAM_ANY);
 }
 
 

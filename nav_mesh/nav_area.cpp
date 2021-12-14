@@ -70,7 +70,7 @@ bool UTIL_IsCommandIssuedByServerAdmin() {
 	if (engine->IsDedicatedServer()) {
 		return false;
 	}
-	for (int i = 2; i < gpGlobals->maxClients; i++) {
+	for (int i = 2; i <= gpGlobals->maxClients; i++) {
 		edict_t* player = engine->PEntityOfEntIndex(i);
 		IPlayerInfo* info = playerinfomanager->GetPlayerInfo(player);
 		if (player != nullptr && !player->IsFree() && player->GetNetworkable() != nullptr
@@ -5844,7 +5844,7 @@ bool CNavArea::IsCompletelyVisible( const CNavArea *viewedArea ) const
 bool CNavArea::IsPotentiallyVisibleToTeam(int teamIndex) const {
 	VPROF_BUDGET("CNavArea::IsPotentiallyVisibleToTeam", "NextBot");
 
-	for (int i = 0; i < gpGlobals->maxClients; ++i) {
+	for (int i = 1; i <= gpGlobals->maxClients; ++i) {
 		edict_t *pEnt = engine->PEntityOfEntIndex(i);
 		if (pEnt) {
 			IPlayerInfo* player = playerinfomanager->GetPlayerInfo(pEnt);
@@ -5870,7 +5870,7 @@ bool CNavArea::IsPotentiallyVisibleToTeam(int teamIndex) const {
 bool CNavArea::IsCompletelyVisibleToTeam(int teamIndex) const {
 	VPROF_BUDGET("CNavArea::IsCompletelyVisibleToTeam", "NextBot");
 
-	for (int i = 0; i < gpGlobals->maxClients; ++i) {
+	for (int i = 1; i <= gpGlobals->maxClients; ++i) {
 		edict_t *pEnt = engine->PEntityOfEntIndex(i);
 		if (pEnt) {
 			IPlayerInfo* player = playerinfomanager->GetPlayerInfo(pEnt);
