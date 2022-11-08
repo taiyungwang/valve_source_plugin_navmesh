@@ -5,7 +5,7 @@ set(PLUGIN_NAME plugin_navmesh)
 add_library(${PLUGIN_NAME} SHARED  VSPlugin.cpp)
 target_link_libraries(${PLUGIN_NAME}  
 	 valve_navmesh plugin_util 
-	 ${tier1} ${mathlib} vstdlib public tier0 ${tier2} ${LEGACY_STDIO} )
+	 ${tier1} ${mathlib} vstdlib public tier0 ${LEGACY_STDIO} )
 	 
 #find installed mods on system.
 set( steam_dir steamapps/common )
