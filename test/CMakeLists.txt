@@ -1,11 +1,14 @@
 set(CMAKE_SHARED_LIBRARY_PREFIX "")
 set(CMAKE_STATIC_LIBRARY_PREFIX "")
-add_library(public STATIC ${HL2SDK_DIR}/public/collisionutils.cpp)
+add_library(collisionutils ${HL2SDK_DIR}/public/collisionutils.cpp)
+target_include_directories(collisionutils PRIVATE ${HL2SDK_DIR}/public ${HL2SDK_DIR}/public/tier0 ${HL2SDK_DIR}/public/tier1)
 set(PLUGIN_NAME plugin_navmesh)
-add_library(${PLUGIN_NAME} SHARED  VSPlugin.cpp)
+add_library(${PLUGIN_NAME} MODULE  VSPlugin.cpp)
+target_link_directories(${PLUGIN_NAME} PUBLIC "${src_dir}/bin" ${HL2SDK_LIBS})
+
 target_link_libraries(${PLUGIN_NAME}  
 	 valve_navmesh plugin_util 
-	 ${tier1} ${mathlib} vstdlib public tier0 ${LEGACY_STDIO} )
+	 ${tier1} ${mathlib} vstdlib collisionutils tier0 ${LEGACY_STDIO} )
 	 
 #find installed mods on system.
 set( steam_dir steamapps/common )
