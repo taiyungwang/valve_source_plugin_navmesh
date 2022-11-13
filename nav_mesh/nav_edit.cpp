@@ -2015,9 +2015,7 @@ void CommandNavCenterInWorld( void )
 	// update the position of all areas
 	FOR_EACH_VEC( TheNavAreas, it )
 	{
-		CNavArea *area = TheNavAreas[ it ];
-
-		area->Shift( shift );
+		TheNavAreas[ it ]->Shift( shift );
 	}
 
 	EmitSound(player, "EDIT_END_AREA.Creating" );
