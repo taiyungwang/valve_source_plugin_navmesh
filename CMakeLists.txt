@@ -34,11 +34,11 @@ if (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU" OR ${CMAKE_CXX_COMPILER_ID} MATCHES 
 	else()
 		add_definitions(-D__clang__)
 	endif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-	add_compile_options(-march=pentium3 -mmmx -m32 $<$<CONFIG:Debug>:-Wall>)
+	set(my_compile_options -march=pentium3 -m32 $<$<CONFIG:Debug>:-Wall>)
 	add_definitions(-D_POSIX -DPOSIX -DGNUC -DNO_HOOK_MALLOC -DNO_MALLOC_OVERRIDE)
 	set(my_link_options -static-libgcc -static-libstdc++ -m32)
 else() #MSVC
-	add_compile_options(
+	set(my_compile_options
 		$<$<CONFIG:>:/MT> #---------|
 		$<$<CONFIG:Debug>:/MTd> #---|-- Statically link the runtime libraries
 		$<$<CONFIG:Release>:/MT> #--|
@@ -57,6 +57,8 @@ set(shared_includes ${HL2SDK_DIR}/public ${HL2SDK_DIR}/public/tier0
 	${HL2SDK_DIR}/game/shared ${HL2SDK_DIR}/game/server)
 add_subdirectory(${PROJECT_SOURCE_DIR}/util)
 target_include_directories(plugin_util PUBLIC ${shared_includes})
+target_compile_options(plugin_util PUBLIC ${my_compile_options})
 add_subdirectory(${PROJECT_SOURCE_DIR}/nav_mesh)
 target_include_directories(valve_navmesh PUBLIC ${shared_includes} ${CMAKE_SOURCE_DIR} )
+target_compile_options(valve_navmesh PUBLIC ${my_compile_options})
 add_subdirectory(${PROJECT_SOURCE_DIR}/test)

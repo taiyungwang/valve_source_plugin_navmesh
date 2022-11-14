@@ -1,5 +1,6 @@
 add_library(collisionutils ${HL2SDK_DIR}/public/collisionutils.cpp)
 target_include_directories(collisionutils PRIVATE ${HL2SDK_DIR}/public ${HL2SDK_DIR}/public/tier0 ${HL2SDK_DIR}/public/tier1)
+target_compile_options(collisionutils PUBLIC ${my_compile_options})
 set(PLUGIN_NAME plugin_navmesh)
 add_library(${PLUGIN_NAME} MODULE  VSPlugin.cpp)
 target_link_directories(${PLUGIN_NAME} PUBLIC "${src_dir}/bin" ${HL2SDK_LIBS})
