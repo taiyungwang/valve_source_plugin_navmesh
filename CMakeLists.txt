@@ -40,6 +40,7 @@ if (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU" OR ${CMAKE_CXX_COMPILER_ID} MATCHES 
 	if (CMAKE_BUILD_TYPE MATCHES Debug)
     	set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")	
 	endif()
+	set(my_link_options -static-libgcc -static-libstdc++)
 else() #MSVC
 	add_compile_options(
 		$<$<CONFIG:>:/MT> #---------|
@@ -48,9 +49,7 @@ else() #MSVC
 		-arch:SSE -GS- -TP -W4 -fp:fast -GF -Zc:forScope -RTC1 -GR -Gd -Oy- -Fa -Fo -Fp -MP -Od -TP
 	)
 	string(REPLACE "/EHsc" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-	add_link_options(
-		/NODEFAULTLIB:libcmtd
-		/SAFESEH:NO)
+	set(my_link_options /NODEFAULTLIB:libcmtd /SAFESEH:NO)
 	add_definitions(-DCOMPILER_MSVC -DCOMPILER_MSVC32 -D_CRT_NO_VA_START_VALIDATION -D_CRT_SECURE_NO_DEPRECATE 
 		-D_CRT_NONSTDC_NO_DEPRECATE)
 	set (LEGACY_STDIO legacy_stdio_definitions)
