@@ -1,5 +1,3 @@
-set(CMAKE_SHARED_LIBRARY_PREFIX "")
-set(CMAKE_STATIC_LIBRARY_PREFIX "")
 add_library(collisionutils ${HL2SDK_DIR}/public/collisionutils.cpp)
 target_include_directories(collisionutils PRIVATE ${HL2SDK_DIR}/public ${HL2SDK_DIR}/public/tier0 ${HL2SDK_DIR}/public/tier1)
 set(PLUGIN_NAME plugin_navmesh)

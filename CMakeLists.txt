@@ -34,13 +34,9 @@ if (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU" OR ${CMAKE_CXX_COMPILER_ID} MATCHES 
 	else()
 		add_definitions(-D__clang__)
 	endif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-	set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")	
-	set( ARCH_FLAGS "-mtune=i686 -march=pentium3 -mmmx -m32 -fpermissive" )
+	add_compile_options(-march=pentium3 -mmmx -m32 $<$<CONFIG:Debug>:-Wall>)
 	add_definitions(-D_POSIX -DPOSIX -DGNUC -DNO_HOOK_MALLOC -DNO_MALLOC_OVERRIDE)
-	if (CMAKE_BUILD_TYPE MATCHES Debug)
-    	set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")	
-	endif()
-	set(my_link_options -static-libgcc -static-libstdc++)
+	set(my_link_options -static-libgcc -static-libstdc++ -m32)
 else() #MSVC
 	add_compile_options(
 		$<$<CONFIG:>:/MT> #---------|
@@ -54,7 +50,6 @@ else() #MSVC
 		-D_CRT_NONSTDC_NO_DEPRECATE)
 	set (LEGACY_STDIO legacy_stdio_definitions)
 endif ()
-SET( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${ARCH_FLAGS}" )
 
 set(shared_includes ${HL2SDK_DIR}/public ${HL2SDK_DIR}/public/tier0 
 	${HL2SDK_DIR}/public/engine ${HL2SDK_DIR}/public/tier1 ${HL2SDK_DIR}/public/mathlib
