@@ -23,11 +23,12 @@ edict_t* BaseEntity::getEntity(const char *varName) {
 }
 
 char *BaseEntity::getPointer(const char* varName) const {
-	int offset = getOffset(varName, ent->m_pNetworkable->GetServerClass()->m_pTable, 0);
+	ServerClass *serverClass = ent->m_pNetworkable->GetServerClass();
+	int offset = getOffset(varName, serverClass->m_pTable, 0);
 	if (offset < 0) {
 		throw SimpleException(CUtlString("Unable find offset for variable, ")
 					+ varName + ", for class, "
-					+ ent->GetClassName() + ".\n");
+					+ serverClass->m_pNetworkName + ".\n");
 	}
 	return ent->GetUnknown() == nullptr
 			? nullptr : (reinterpret_cast<char *>(ent->GetUnknown()->GetBaseEntity()) + offset);
@@ -57,6 +58,6 @@ int BaseEntity::getOffset(const char* varName, SendTable* pTable, int offset) {
 void BaseEntity::throwException(const char *varName) const {
 	throw SimpleException(CUtlString("Unable find entity variable, ")
 			+ varName + ", for class, "
-			+ ent->GetClassName() + ".\n");
+			+ ent->m_pNetworkable->GetServerClass()->m_pNetworkName + ".\n");
 }
 
