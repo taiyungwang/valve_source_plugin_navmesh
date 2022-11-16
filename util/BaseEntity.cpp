@@ -23,15 +23,19 @@ edict_t* BaseEntity::getEntity(const char *varName) {
 }
 
 char *BaseEntity::getPointer(const char* varName) const {
+	IServerUnknown *unk = ent->GetUnknown();
 	ServerClass *serverClass = ent->m_pNetworkable->GetServerClass();
+	if (ent->IsFree() || !unk) {
+		throw SimpleException(CUtlString("Unable to get, ") + serverClass->m_pNetworkName
+				+ "." + varName + ", because entity, " + ent->GetClassName() + "is unvailable.\n");
+	}
 	int offset = getOffset(varName, serverClass->m_pTable, 0);
 	if (offset < 0) {
-		throw SimpleException(CUtlString("Unable find offset for variable, ")
-					+ varName + ", for class, "
-					+ serverClass->m_pNetworkName + ".\n");
+		throw SimpleException(CUtlString("Unable find offset for ")
+				+ serverClass->m_pNetworkName
+				+ "." + varName + " for entity, " + ent->GetClassName() + ".\n");
 	}
-	return ent->GetUnknown() == nullptr
-			? nullptr : (reinterpret_cast<char *>(ent->GetUnknown()->GetBaseEntity()) + offset);
+	return reinterpret_cast<char *>(unk->GetBaseEntity()) + offset;
 }
 
 int BaseEntity::getOffset(const char* varName, SendTable* pTable, int offset) {
@@ -53,11 +57,5 @@ int BaseEntity::getOffset(const char* varName, SendTable* pTable, int offset) {
 		}
 	}
 	return -1;
-}
-
-void BaseEntity::throwException(const char *varName) const {
-	throw SimpleException(CUtlString("Unable find entity variable, ")
-			+ varName + ", for class, "
-			+ ent->m_pNetworkable->GetServerClass()->m_pNetworkName + ".\n");
 }
 

@@ -73,9 +73,6 @@ private:
 	static int getOffset(const char* varName, SendTable* pTable, int offset);
 
 	char *getPointer(const char* varName) const;
-
-
-	void throwException(const char *varName) const;
 };
 
 #endif /* UTILS_VALVE_NAVMESH_UTIL_BASEENTITY_H_ */
