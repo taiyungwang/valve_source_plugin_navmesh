@@ -39,11 +39,5 @@ set(shared_includes ${HL2SDK_DIR}/public ${HL2SDK_DIR}/public/tier0
 	${HL2SDK_DIR}/public/game/server  
 	${HL2SDK_DIR}/game/shared ${HL2SDK_DIR}/game/server)
 add_subdirectory(${PROJECT_SOURCE_DIR}/util)
-target_compile_definitions(plugin_util PUBLIC ${shared_defs})
-target_include_directories(plugin_util PUBLIC ${shared_includes})
-target_compile_options(plugin_util PUBLIC ${my_compile_options})
 add_subdirectory(${PROJECT_SOURCE_DIR}/nav_mesh)
-target_compile_definitions(valve_navmesh PUBLIC ${shared_defs})
-target_include_directories(valve_navmesh PUBLIC ${shared_includes} ${CMAKE_SOURCE_DIR} )
-target_compile_options(valve_navmesh PUBLIC ${my_compile_options})
 add_subdirectory(${PROJECT_SOURCE_DIR}/test)
