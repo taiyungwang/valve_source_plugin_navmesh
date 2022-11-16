@@ -7,9 +7,7 @@
 #include "UtilTrace.h"
 
 #include "EntityUtils.h"
-#include "EntityClass.h"
 #include "BaseEntity.h"
-#include "EntityVar.h"
 #include <model_types.h>
 #include <eiface.h>
 #include <iplayerinfo.h>

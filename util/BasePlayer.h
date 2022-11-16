@@ -6,7 +6,7 @@
 
 class BasePlayer: public BaseEntity {
 public:
-	BasePlayer(edict_t *ent): BasePlayer("CBasePlayer", ent) {
+	BasePlayer(edict_t *ent): BaseEntity(ent) {
 	}
 
 	virtual ~BasePlayer() {
@@ -24,15 +24,7 @@ public:
 		return getPtr<int>("m_iAmmo");
 	}
 
-	int getFlags() {
-		return get<int>("m_fFlags");
-	}
-
 	Vector getVelocity() {
 		return get<Vector>("m_vecVelocity[0]");
-	}
-
-protected:
-	BasePlayer(const char* className, edict_t* ent): BaseEntity(className, ent) {
 	}
 };

@@ -1,6 +1,5 @@
 #include "VSPlugin.h"
 
-#include <util/EntityClassManager.h>
 #include <IEngineTrace.h>
 #include <eiface.h>
 #include <ivdebugoverlay.h>
@@ -29,7 +28,6 @@ IVModelInfo *modelinfo = nullptr;
 IPhysicsSurfaceProps *physprop = nullptr;
 IServerGameEnts *servergameents = nullptr;
 CGlobalVars *gpGlobals = nullptr;
-EntityClassManager *classManager = nullptr;
 CNavMesh* TheNavMesh = nullptr;
 bool navMeshLoadAttempted;
 
@@ -98,7 +96,6 @@ bool VSPlugin::Load(CreateInterfaceFn interfaceFactory,
 	}
 	ConVar_Register(0);
 	MathLib_Init();
-	classManager = new EntityClassManager(servergamedll);
 	gpGlobals = playerinfomanager->GetGlobalVars();
 	TheNavMesh = new CNavMesh;
 	char modPath[256];

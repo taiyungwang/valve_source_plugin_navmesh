@@ -7,12 +7,10 @@
 #include "EntityUtils.h"
 
 #include "BasePlayer.h"
-#include "EntityClassManager.h"
 #include <convar.h>
 #include <shareddefs.h>
 #include <eiface.h>
 #include <iplayerinfo.h>
-#include <edict.h>
 #include <worldsize.h>
 #include <server_class.h>
 #include <utlstring.h>
@@ -87,12 +85,12 @@ bool FClassnameIs(edict_t *pEntity, const char *szClassname) {
 }
 
 bool isBreakable(edict_t* target) {
-	BasePlayer player(target);
+	BaseEntity obj(target);
 	const char* model = target->GetIServerEntity()->GetModelName().ToCStr();
-	return !(player.getFlags() & FL_WORLDBRUSH)
+	return !(obj.getFlags() & FL_WORLDBRUSH)
 			&& (model[13] != 'c' || model[17] != 'o' || model[20] != 'd'
 					|| model[28] != 'e') // explosive
-			&& player.getHealth() < 1000 && player.getHealth() > 0;
+			&& obj.getHealth() < 1000 && obj.getHealth() > 0;
 }
 
 /**

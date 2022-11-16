@@ -16,7 +16,6 @@
 #include "nav_colors.h"
 #include <util/UtilTrace.h>
 #include <util/BaseEntity.h>
-#include <util/EntityClassManager.h>
 #include <util/EntityUtils.h>
 #include "Color.h"
 #include "tier0/vprof.h"
@@ -1967,6 +1966,7 @@ CON_COMMAND_F( nav_shift, "Shifts the selected areas by the specified amount", F
 }
 
 
+
 //--------------------------------------------------------------------------------------------------------
 void CommandNavCenterInWorld( void )
 {
@@ -2003,10 +2003,9 @@ void CommandNavCenterInWorld( void )
 	if ( worldEnt == nullptr )
 		return;
 	Extent worldExtent;
-	extern 	EntityClassManager *classManager;
-	EntityClass* world = classManager->getClass("CWorld");
-	worldExtent.lo = world->getEntityVar("m_WorldMins").get<Vector>(worldEnt);
-	worldExtent.hi = world->getEntityVar("m_WorldMaxs").get<Vector>(worldEnt);
+	BaseEntity world(worldEnt);
+	worldExtent.lo = world.get<Vector>("m_WorldMins");
+	worldExtent.hi = world.get<Vector>("m_WorldMaxs");
 
 	// Compute the difference, and shift in XY
 	Vector shift = ( navExtent.lo + navExtent.hi - worldExtent.lo - worldExtent.hi ) * 0.5f;

@@ -7,14 +7,13 @@
 #ifndef UTILS_VALVE_NAVMESH_UTIL_BASEENTITY_H_
 #define UTILS_VALVE_NAVMESH_UTIL_BASEENTITY_H_
 
-#include "EntityClass.h"
-#include "EntityVar.h"
-
+class CBaseEntity;
+class SendTable;
 struct edict_t;
 
 class BaseEntity {
 public:
-	BaseEntity(edict_t* ent): BaseEntity("CBaseEntity", ent) {
+	BaseEntity(edict_t* ent): ent(ent) {
 	}
 
 	virtual ~BaseEntity() {
@@ -50,26 +49,33 @@ public:
 
 	bool isDestroyedOrUsed();
 
+
+	template<typename T>
+	T get(const char* varName) const {
+		return *getPtr<T>(varName);
+	}
+
+	template<typename T>
+	T *getPtr(const char* varName) const {
+		return reinterpret_cast<T*>(getPointer(varName));
+	}
+
+	int getFlags() {
+		return get<int>("m_fFlags");
+	}
+
+	edict_t* getEntity(const char *varName);
+
 protected:
-	BaseEntity(const char* className, edict_t* ent);
-
-	EntityClass* classDef = nullptr;
-
 	edict_t* ent = nullptr;
 
-	template<typename T>
-	T get(const char* name) {
-		return classDef->getEntityVar(name).get<T>(ent);
-	}
+private:
+	static int getOffset(const char* varName, SendTable* pTable, int offset);
 
-	template<typename T>
-	T *getPtr(const char* name) {
-		return classDef->getEntityVar(name).getPtr<T>(ent);
-	}
+	char *getPointer(const char* varName) const;
 
-	edict_t* getEntity(const char *varName) {
-		return classDef->getEntityVar(varName).getEntity(ent);
-	}
+
+	void throwException(const char *varName) const;
 };
 
 #endif /* UTILS_VALVE_NAVMESH_UTIL_BASEENTITY_H_ */
