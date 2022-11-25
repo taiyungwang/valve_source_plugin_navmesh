@@ -87,10 +87,10 @@ bool FClassnameIs(edict_t *pEntity, const char *szClassname) {
 bool isBreakable(edict_t* target) {
 	BaseEntity obj(target);
 	const char* model = target->GetIServerEntity()->GetModelName().ToCStr();
-	return !(obj.getFlags() & FL_WORLDBRUSH)
+	return !(*obj.getFlags() & FL_WORLDBRUSH)
 			&& (model[13] != 'c' || model[17] != 'o' || model[20] != 'd'
 					|| model[28] != 'e') // explosive
-			&& obj.getHealth() < 1000 && obj.getHealth() > 0;
+			&& *obj.getHealth() < 1000 && *obj.getHealth() > 0;
 }
 
 /**
@@ -130,7 +130,7 @@ bool IsEntityWalkable(edict_t *entity, unsigned int flags) {
 	}
 	// if we hit a breakable object, assume its walkable because we will shoot it when we touch it
 	return (((FClassnameIs( entity, "func_breakable" ) || FClassnameIs( entity, "func_breakable_surf" ))
-			&& BasePlayer(entity).getHealth() > 0) && (flags & WALK_THRU_BREAKABLES))
+			&& *BaseEntity(entity).getHealth() > 0) && (flags & WALK_THRU_BREAKABLES))
 			|| FClassnameIs( entity, "func_playerinfected_clip" )
 			|| (nav_solid_props.GetBool() && FClassnameIs( entity, "prop_*" ));
 }

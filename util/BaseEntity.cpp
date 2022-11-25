@@ -11,11 +11,11 @@
 #include <server_class.h>
 #include <const.h>
 
-bool BaseEntity::isDestroyedOrUsed() {
-	return ent->IsFree() || (get<int>("m_fEffects") & EF_NODRAW);
+bool BaseEntity::isDestroyedOrUsed() const {
+	return (get<int>("m_fEffects", EF_NODRAW) & EF_NODRAW) > 0;
 }
 
-edict_t* BaseEntity::getEntity(const char *varName) {
+edict_t* BaseEntity::getEntity(const char *varName) const {
 	CBaseHandle* out = getPtr<CBaseHandle>(varName);
 	extern IVEngineServer* engine;
 	return out == nullptr ?
@@ -23,24 +23,20 @@ edict_t* BaseEntity::getEntity(const char *varName) {
 }
 
 char *BaseEntity::getPointer(const char* varName) const {
+	if (ent == nullptr) {
+		return nullptr;
+	}
 	IServerUnknown *unk = ent->GetUnknown();
 	ServerClass *serverClass = ent->m_pNetworkable->GetServerClass();
 	if (ent->IsFree() || !unk) {
-		throw SimpleException(CUtlString("Unable to get, ") + serverClass->m_pNetworkName
-				+ "." + varName + ", because entity, " + ent->GetClassName() + "is unvailable.\n");
+		return nullptr;
 	}
 	int offset = getOffset(varName, serverClass->m_pTable, 0);
-	if (offset < 0) {
-		throw SimpleException(CUtlString("Unable find offset for ")
-				+ serverClass->m_pNetworkName
-				+ "." + varName + " for entity, " + ent->GetClassName() + ".\n");
-	}
-	return reinterpret_cast<char *>(unk->GetBaseEntity()) + offset;
+	return offset < 0 ? nullptr : reinterpret_cast<char *>(unk->GetBaseEntity()) + offset;
 }
 
 int BaseEntity::getOffset(const char* varName, SendTable* pTable, int offset) {
-	int props = pTable->GetNumProps();
-	for (int i = 0; i < props; i++) {
+	for (int i = 0; i < pTable->GetNumProps(); i++) {
 		SendProp *prop = pTable->GetProp(i);
 		const char *pname = prop->GetName();
 		if (pname != nullptr && strcmp(varName, pname) == 0) {

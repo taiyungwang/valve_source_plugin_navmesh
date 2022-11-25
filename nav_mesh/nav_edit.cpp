@@ -846,7 +846,7 @@ void CNavMesh::DrawEditMode( void )
 				{
 					V_snprintf(buffer, sizeof(buffer), "Ladder #%d (Team %d)\n",
 							m_selectedLadder->GetID(),
-							BaseEntity(ladderEntity->GetNetworkable()->GetEdict()).getTeam());
+							*BaseEntity(ladderEntity->GetNetworkable()->GetEdict()).getTeam());
 				}
 				else
 				{
@@ -2004,8 +2004,8 @@ void CommandNavCenterInWorld( void )
 		return;
 	Extent worldExtent;
 	BaseEntity world(worldEnt);
-	worldExtent.lo = world.get<Vector>("m_WorldMins");
-	worldExtent.hi = world.get<Vector>("m_WorldMaxs");
+	worldExtent.lo = *world.getPtr<Vector>("m_WorldMins");
+	worldExtent.hi = *world.getPtr<Vector>("m_WorldMaxs");
 
 	// Compute the difference, and shift in XY
 	Vector shift = ( navExtent.lo + navExtent.hi - worldExtent.lo - worldExtent.hi ) * 0.5f;
@@ -2560,11 +2560,12 @@ void CNavMesh::CommandNavEndArea( void )
 		CNavArea *nearby = GetMarkedArea();
 		if ( !nearby )
 		{
-			nearby = TheNavMesh->GetNearestNavArea( m_editCursorPos + Vector( 0, 0, HalfHumanHeight ), false, 10000.0f, true );
+			nearby = TheNavMesh->GetNearestNavArea( m_editCursorPos + Vector( 0, 0, HalfHumanHeight ),
+					10000.0f, true );
 		}
 		if ( !nearby )
 		{
-			nearby = TheNavMesh->GetNearestNavArea( endPos + Vector( 0, 0, HalfHumanHeight ), false, 10000.0f, true );
+			nearby = TheNavMesh->GetNearestNavArea( endPos + Vector( 0, 0, HalfHumanHeight ), 10000.0f, true );
 		}
 		if ( !nearby )
 		{
@@ -3345,6 +3346,8 @@ void CNavMesh::CommandNavCornerPlaceOnGround( const CCommand &args )
 //--------------------------------------------------------------------------------------------------------------
 void CNavMesh::CommandNavWarpToMark( void )
 {
+	/**
+	  TODO
 	edict_t* ent = UTIL_GetListenServerEnt();
 	if (ent == NULL || !IsEditMode( NORMAL ) )
 		return;
@@ -3359,8 +3362,6 @@ void CNavMesh::CommandNavWarpToMark( void )
 	{
 		Vector origin = targetArea->GetCenter() + Vector( 0, 0, 0.75f * HumanHeight );
 		QAngle angles = player->GetAbsAngles();
-/*
- * TODO
 		if ( ( player->IsDead() || player->IsObserver() ) && player->GetObserverMode() == OBS_MODE_ROAMING )
 		{
 			UTIL_SetOrigin( player, origin );
@@ -3371,7 +3372,6 @@ void CNavMesh::CommandNavWarpToMark( void )
 			player->Teleport( &origin, &angles, &vec3_origin );
 			EmitSound(ent, "EDIT_WARP_TO_MARK" );
 		}
- */
 	}
 	else if ( GetMarkedLadder() )
 	{
@@ -3381,8 +3381,6 @@ void CNavMesh::CommandNavWarpToMark( void )
 		Vector origin = (ladder->m_top + ladder->m_bottom)/2;
 		origin.x += ladder->GetNormal().x * GenerationStepSize;
 		origin.y += ladder->GetNormal().y * GenerationStepSize;
-		/*
-		 * TODO
 		if ( ( player->IsDead() || player->IsObserver() ) && player->GetObserverMode() == OBS_MODE_ROAMING )
 		{
 			UTIL_SetOrigin( player, origin );
@@ -3393,12 +3391,12 @@ void CNavMesh::CommandNavWarpToMark( void )
 			player->Teleport( &origin, &angles, &vec3_origin );
 			EmitSound(ent, "EDIT_WARP_TO_MARK" );
 		}
-		 */
 	}
 	else
 	{
 		EmitSound(ent, "EDIT_WARP_TO_MARK" );
 	}
+	*/
 }
 
 

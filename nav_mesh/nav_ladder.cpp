@@ -432,8 +432,9 @@ bool CNavLadder::IsUsableByTeam(int teamNumber) const {
 	if (ent == nullptr) {
 		return true;
 	}
-	int ladderTeamNumber = BaseEntity(ent->GetNetworkable()->GetEdict()).getTeam();
-	return teamNumber == ladderTeamNumber || ladderTeamNumber == TEAM_UNASSIGNED;
+	int *ladderTeamNumber = BaseEntity(ent->GetNetworkable()->GetEdict()).getTeam();
+	return ladderTeamNumber == nullptr || teamNumber == *ladderTeamNumber
+			|| *ladderTeamNumber == TEAM_UNASSIGNED;
 }
 
 //--------------------------------------------------------------------------------------------------------------

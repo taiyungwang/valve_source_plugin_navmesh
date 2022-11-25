@@ -37,17 +37,17 @@ bool StandardFilterRules(IHandleEntity *pHandleEntity, int fContentsMask) {
 	SolidType_t solid = pCollide->GetCollideable()->GetSolid();
 	extern IVModelInfo *modelinfo;
 	BaseEntity baseEntity(pCollide);
-	return modelinfo->GetModelType(modelinfo->GetModel(baseEntity.getModelIndex())) == mod_brush
+	return modelinfo->GetModelType(modelinfo->GetModel(*baseEntity.getModelIndex())) == mod_brush
 			&& (solid == SOLID_BSP || solid == SOLID_VPHYSICS)
 			&& (fContentsMask & CONTENTS_MONSTER) == 0
 	// This code is used to cull out tests against see-thru entities
-			&& ((fContentsMask & CONTENTS_WINDOW) || baseEntity.getRenderMode() != kRenderNormal)
+			&& ((fContentsMask & CONTENTS_WINDOW) || *baseEntity.getRenderMode() != kRenderNormal)
 			// FIXME: this is to skip BSP models that are entities that can be
 			// potentially moved/deleted, similar to a monster but doors don't seem to
 			// be flagged as monsters
 			// FIXME: the FL_WORLDBRUSH looked promising, but it needs to be set on
 			// everything that's actually a worldbrush and it currently isn't
-			&& ((fContentsMask & CONTENTS_MOVEABLE) || baseEntity.getMoveType() != MOVETYPE_PUSH);// !(touch->flags & FL_WORLDBRUSH) )
+			&& ((fContentsMask & CONTENTS_MOVEABLE) || (*baseEntity.getMoveType() & 15) != MOVETYPE_PUSH);// !(touch->flags & FL_WORLDBRUSH) )
 }
 
 bool CGameRulesShouldCollide(int collisionGroup0, int collisionGroup1) {

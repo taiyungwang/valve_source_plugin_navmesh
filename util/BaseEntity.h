@@ -19,40 +19,41 @@ public:
 	virtual ~BaseEntity() {
 	}
 
-	int getTeam() {
-		return get<int>("m_iTeamNum");
+	int *getTeam() const {
+		return getPtr<int>("m_iTeamNum");
 	}
 
-	int getMoveType() {
-		return get<int>("movetype") & 15;
+	int *getMoveType() const {
+		return getPtr<int>("movetype");
 	}
 
-	unsigned char getRenderMode() {
-		return get<unsigned char>("m_nRenderMode");
+	unsigned char *getRenderMode() const {
+		return getPtr<unsigned char>("m_nRenderMode");
 	}
 
-	int getModelIndex() {
-		return get<short>("m_nModelIndex");
+	int *getModelIndex() const {
+		return getPtr<int>("m_nModelIndex");
 	}
 
-	int getHealth() {
-		return get<int>("m_iHealth");
+	int *getHealth() const {
+		return getPtr<int>("m_iHealth");
 	}
 
-	bool isUnderWater() {
-		return get<int>("m_nWaterLevel") > 1;
+	bool isUnderWater() const {
+		return get<int>("m_nWaterLevel", 0) > 1;
 	}
 
-	edict_t* getGroundEntity() {
+	edict_t* getGroundEntity() const {
 		return getEntity("m_hGroundEntity");
 	}
 
-	bool isDestroyedOrUsed();
+	bool isDestroyedOrUsed() const;
 
 
 	template<typename T>
-	T get(const char* varName) const {
-		return *getPtr<T>(varName);
+	T get(const char* varName, const T defaultVal) const {
+		T *out = getPtr<T>(varName);
+		return out == nullptr ? defaultVal : defaultVal;
 	}
 
 	template<typename T>
@@ -60,11 +61,11 @@ public:
 		return reinterpret_cast<T*>(getPointer(varName));
 	}
 
-	int getFlags() {
-		return get<int>("m_fFlags");
+	int *getFlags() {
+		return getPtr<int>("m_fFlags");
 	}
 
-	edict_t* getEntity(const char *varName);
+	edict_t* getEntity(const char *varName) const;
 
 protected:
 	edict_t* ent = nullptr;

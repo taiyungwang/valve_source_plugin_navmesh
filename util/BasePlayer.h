@@ -16,15 +16,16 @@ public:
 		return -1;
 	}
 
-	virtual bool isOnLadder() {
-		return getMoveType() == MOVETYPE_LADDER;
+	virtual bool isOnLadder() const {
+		int *moveType = getMoveType();
+		return moveType != nullptr && (*moveType & 15) == MOVETYPE_LADDER;
 	}
 
-	int* getAmmo() {
+	int* getAmmo() const {
 		return getPtr<int>("m_iAmmo");
 	}
 
-	Vector getVelocity() {
-		return get<Vector>("m_vecVelocity[0]");
+	Vector *getVelocity() const {
+		return getPtr<Vector>("m_vecVelocity[0]");
 	}
 };
