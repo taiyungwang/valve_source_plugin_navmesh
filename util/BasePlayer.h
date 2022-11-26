@@ -12,7 +12,7 @@ public:
 	virtual ~BasePlayer() {
 	}
 
-	virtual int getPlayerClass() {
+	virtual int getPlayerClass() const {
 		return -1;
 	}
 
