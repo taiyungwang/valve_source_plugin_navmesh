@@ -27,10 +27,10 @@ char *BaseEntity::getPointer(const char* varName) const {
 		return nullptr;
 	}
 	IServerUnknown *unk = ent->GetUnknown();
-	ServerClass *serverClass = ent->m_pNetworkable->GetServerClass();
-	if (ent->IsFree() || !unk) {
+	if (ent->IsFree() || !unk || !ent->m_pNetworkable) {
 		return nullptr;
 	}
+	ServerClass *serverClass = ent->m_pNetworkable->GetServerClass();
 	int offset = getOffset(varName, serverClass->m_pTable, 0);
 	return offset < 0 ? nullptr : reinterpret_cast<char *>(unk->GetBaseEntity()) + offset;
 }
