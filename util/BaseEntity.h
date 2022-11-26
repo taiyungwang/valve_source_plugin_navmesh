@@ -53,7 +53,7 @@ public:
 	template<typename T>
 	T get(const char* varName, const T defaultVal) const {
 		T *out = getPtr<T>(varName);
-		return out == nullptr ? defaultVal : defaultVal;
+		return out == nullptr ? defaultVal : *out;
 	}
 
 	template<typename T>
