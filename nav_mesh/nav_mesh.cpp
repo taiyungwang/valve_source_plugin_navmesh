@@ -964,7 +964,7 @@ CNavArea *CNavMesh::GetNearestNavArea( const Vector &pos, float maxDist, bool ch
 							// don't consider blocked areas
 							|| area->IsBlocked( team )
 							// don't consider area that is overhead
-							|| area->GetCenter().z > - pos.z > HumanHeight)
+							|| area->GetCenter().z - pos.z > HumanHeight)
 						continue;
 
 					// mark as visited
