@@ -3229,9 +3229,6 @@ void CNavMesh::BeginGeneration( bool incremental )
 	if ( event )
 	{
 		gameeventmanager->FireEvent( event );
-	} else {
-		extern IGameEventManager *gameeventmanager1;
-		gameeventmanager1->FireEvent(new KeyValues("nav_generate"));
 	}
 
 #ifdef TERROR
