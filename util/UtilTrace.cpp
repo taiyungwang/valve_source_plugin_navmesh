@@ -16,7 +16,7 @@
 
 extern IVDebugOverlay* debugoverlay;
 extern IEngineTrace *enginetrace;
-extern ConVar r_visualizetraces;
+extern ICvar* cVars;
 
 edict_t *entityFromEntityHandle(const IHandleEntity *pHandleEntity) {
 	return reinterpret_cast<IServerUnknown*>(const_cast<IHandleEntity*>(pHandleEntity))->GetNetworkable()->GetEdict();
@@ -188,7 +188,7 @@ bool CTraceFilterNoNPCsOrPlayer::ShouldHitEntity(IHandleEntity *pHandleEntity,
 void UTIL_Trace(const Ray_t& ray, unsigned int mask, const ITraceFilter& filter,
 		trace_t *ptr) {
 	enginetrace->TraceRay(ray, mask, const_cast<ITraceFilter*>(&filter), ptr);
-	if (r_visualizetraces.GetBool()) {
+	if (cVars->FindVar("r_visualizetraces")->GetBool()) {
 		debugoverlay->AddLineOverlay(ptr->startpos, ptr->endpos, 255, 0, 0,
 				true, -1.0f);
 	}
@@ -214,7 +214,7 @@ void UTIL_TraceHull(const Vector &vecAbsStart, const Vector &vecAbsEnd,
 	Ray_t ray;
 	ray.Init(vecAbsStart, vecAbsEnd, hullMin, hullMax);
 	UTIL_Trace(ray, mask, filter, ptr);
-	if (!draw && !r_visualizetraces.GetBool()) {
+	if (!draw && !cVars->FindVar("r_visualizetraces")->GetBool()) {
 		return;
 	}
 	QAngle angle(0, 0, 0);
