@@ -7,13 +7,9 @@
 #include "EntityUtils.h"
 
 #include "BasePlayer.h"
-#include <convar.h>
-#include <shareddefs.h>
 #include <eiface.h>
 #include <iplayerinfo.h>
 #include <worldsize.h>
-#include <server_class.h>
-#include <utlstring.h>
 
 extern IVEngineServer *engine;
 extern CGlobalVars *gpGlobals;

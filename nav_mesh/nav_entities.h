@@ -14,7 +14,6 @@
 
 #include "nav_mesh.h"
 #include <util/Handle.h>
-#include <utlvector.h>
 #include <utllinkedlist.h>
 #include <fmtstr.h>
 #include <string_t.h>
