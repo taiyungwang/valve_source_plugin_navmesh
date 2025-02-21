@@ -4,11 +4,11 @@ target_compile_options(collisionutils PUBLIC ${my_compile_options})
 target_compile_definitions(collisionutils PUBLIC ${shared_defs})
 set(PLUGIN_NAME plugin_navmesh)
 add_library(${PLUGIN_NAME} MODULE  VSPlugin.cpp)
-target_link_directories(${PLUGIN_NAME} PUBLIC ${HL2SDK_LIBS})
+target_link_directories(${PLUGIN_NAME} PUBLIC ${HL2SDK_PUB_LIBS} ${HL2SDK_COM_LIBS})
 target_link_options(${PLUGIN_NAME} PRIVATE ${my_link_options})
 target_link_libraries(${PLUGIN_NAME}  
 	 valve_navmesh plugin_util 
-	 ${tier1} ${mathlib} vstdlib collisionutils tier0)
+	 ${tier1} ${mathlib} ${lzma} vstdlib collisionutils tier0)
 	 
 #find installed mods on system.
 set( steam_dir steamapps/common )

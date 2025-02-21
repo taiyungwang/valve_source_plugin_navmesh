@@ -30,6 +30,7 @@ IServerGameEnts *servergameents = nullptr;
 CGlobalVars *gpGlobals = nullptr;
 CNavMesh* TheNavMesh = nullptr;
 bool navMeshLoadAttempted;
+ICvar* cVars = nullptr;
 
 //
 // The plugin is a static singleton that is exported as an interface
