@@ -146,7 +146,7 @@ void CNavMesh::BuildLadders(void) {
 	ladders.RemoveAll();
 	CUtlLinkedList<edict_t*> ladder;
 	findEntWithPatternInName("*ladder*", ladder);
-	FOR_EACH_VEC(ladder, i)
+	FOR_EACH_LL(ladder, i)
 	{
 		ICollideable* coll = ladder[i]->GetCollideable();
 		if (coll != nullptr) {
