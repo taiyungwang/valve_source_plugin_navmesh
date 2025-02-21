@@ -79,10 +79,10 @@ bool NavAttributeSetter::operator() ( CNavArea *area )
 
 unsigned int CVisPairHashFuncs::operator()( const NavVisPair_t &item ) const
 {
-	COMPILE_TIME_ASSERT( sizeof(CNavArea *) == 4 );
-	int key[2] = { (int)item.pAreas[0] + (int)item.pAreas[1]->GetID(),
-			(int)item.pAreas[1] + (int)item.pAreas[0]->GetID() };
-	return Hash8( key );
+	COMPILE_TIME_ASSERT( sizeof(CNavArea *) == sizeof( intp ) );
+	intp key[2] = { (intp) ( (intp)item.pAreas[0] + item.pAreas[1]->GetID() ),
+			(intp)( (intp)item.pAreas[1] + item.pAreas[0]->GetID() ) };
+	return sizeof( key ) >= 16 ? Hash16( key ) : Hash8( key );
 }
 
 extern CGlobalVars *gpGlobals;
@@ -794,7 +794,11 @@ CNavArea *CNavMesh::GetNavArea( edict_t *pEntity, int nFlags, float flBeneathLim
 		return NULL;
 
 	IPlayerInfo *pBCC = playerinfomanager->GetPlayerInfo(pEntity);
-	Vector testPos = pEntity->GetCollideable()->GetCollisionOrigin();
+	ICollideable *collideable = pEntity->GetCollideable();
+	if (collideable == NULL) {
+		return NULL;
+	}
+	Vector testPos = collideable->GetCollisionOrigin();
 
 	float flStepHeight = 1e-3;
 	bool isPlayer = pEntity->m_EdictIndex > 0 && pEntity->m_EdictIndex <= gpGlobals->maxClients;
