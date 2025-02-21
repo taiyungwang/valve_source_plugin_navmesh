@@ -13,8 +13,8 @@ runs:
         repository: taiyungwang/hl2sdk      
         ref: sdk2013
         path: hl2sdk
-    - name: Install CxxTest and Clang
-      run: sudo apt-get install build-essential cxxtest clang gcc-multilib g++-multilib libc6-dev-i386
+    - name: Install Build Dependecies
+      run: sudo apt-get install build-essential cxxtest gcc-multilib g++-multilib libc6-dev-i386
       shell: bash
       
     - name: Configure CMake
