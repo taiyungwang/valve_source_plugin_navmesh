@@ -10,8 +10,8 @@ runs:
     - name: Checkout HL2SDK from Allied Modders
       uses: actions/checkout@v4
       with:
-        repository: taiyungwang/hl2sdk      
-        ref: sdk2013
+        repository: alliedmodders/hl2sdk      
+        ref: tf2_sdk2013
         path: hl2sdk
     - name: Install Build Dependecies
       run: sudo apt-get install build-essential cxxtest gcc-multilib g++-multilib libc6-dev-i386
