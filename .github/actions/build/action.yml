@@ -8,7 +8,7 @@ runs:
   using: "composite"
   steps:
     - name: Checkout HL2SDK from Allied Modders
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
       with:
         repository: taiyungwang/hl2sdk      
         ref: sdk2013
@@ -22,8 +22,6 @@ runs:
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
       run: cmake -S ${{github.workspace}}/${{ inputs.repo-path }} -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
       env: # specify compiler
-        CC: clang
-        CXX: clang++
         BUILD_TYPE: Release        
       shell: bash
 
