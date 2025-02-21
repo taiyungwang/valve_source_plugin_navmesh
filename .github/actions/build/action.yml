@@ -13,10 +13,7 @@ runs:
         repository: alliedmodders/hl2sdk      
         ref: tf2_sdk2013
         path: hl2sdk
-    - name: Install Build Dependecies
-      run: sudo apt-get install build-essential cxxtest gcc-multilib g++-multilib libc6-dev-i386
-      shell: bash
-      
+        
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
