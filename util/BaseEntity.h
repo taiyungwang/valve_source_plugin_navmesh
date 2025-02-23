@@ -7,7 +7,6 @@
 #ifndef UTILS_VALVE_NAVMESH_UTIL_BASEENTITY_H_
 #define UTILS_VALVE_NAVMESH_UTIL_BASEENTITY_H_
 
-class CBaseEntity;
 class SendTable;
 struct edict_t;
 

@@ -4196,7 +4196,7 @@ bool CNavMesh::SampleStep( void )
 				trace_t result;
 				Vector from( *m_currentNode->GetPosition() );
 				CTraceFilterWalkableEntities filter( NULL, COLLISION_GROUP_NONE, WALK_THRU_EVERYTHING );
-				Vector to, toNormal;
+				Vector to, toNormal = vec3_origin;
 				float obstacleHeight = 0, obstacleStartDist = 0, obstacleEndDist = GenerationStepSize;
 				if ( TraceAdjacentNode( 0, from, pos, &result ) )
 				{
