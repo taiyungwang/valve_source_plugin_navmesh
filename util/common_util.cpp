@@ -1,7 +1,7 @@
 #include "common_util.h"
 
 #include <eiface.h>
-#include <strools.h>
+#include <strtools.h>
 
 bool isGameName(const char *name) {
 	extern IVEngineServer* engine;

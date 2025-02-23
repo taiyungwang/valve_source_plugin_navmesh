@@ -1,5 +1,5 @@
 add_library(plugin_util
- SimpleException.cpp BaseEntity.cpp UtilTrace.cpp EntityUtils.cpp Handle.cpp)
+ SimpleException.cpp BaseEntity.cpp UtilTrace.cpp EntityUtils.cpp Handle.cpp common_util.cpp)
 target_compile_definitions(plugin_util PUBLIC ${shared_defs})
 set_property(TARGET plugin_util PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_include_directories(plugin_util PUBLIC ${shared_includes})
