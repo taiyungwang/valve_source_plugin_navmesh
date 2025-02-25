@@ -23,6 +23,7 @@
 // the global singleton interface
 extern CNavMesh *TheNavMesh;
 extern IPlayerInfoManager* playerinfomanager;
+extern CGlobalVars *gpGlobals;
 extern NavAreaVector TheNavAreas;
 extern IVDebugOverlay* debugoverlay;
 
@@ -52,7 +53,7 @@ CFuncNavCost::CFuncNavCost( edict_t* pEnt ): NavEntity(pEnt), m_isDisabled(true)
 	VPhysicsInitShadow( false, false );
 
 	SetThink( &CFuncNavCost::CostThink );
-	SetNextThink( playerinfomanager->GetGlobalVars()->curtime + UPDATE_DIRTY_TIME );
+	SetNextThink( gpGlobals->curtime + UPDATE_DIRTY_TIME );
 */
 
 	m_tags.RemoveAll();
@@ -102,7 +103,7 @@ void CFuncNavCost::InputDisable( )
 //--------------------------------------------------------------------------------------------------------
 void CFuncNavCost::CostThink( CNavMesh* TheNavMesh )
 {
-	// TODO: SetNextThink( playerinfomanager->GetGlobalVars()->curtime + UPDATE_DIRTY_TIME );
+	// TODO: SetNextThink( gpGlobals->curtime + UPDATE_DIRTY_TIME );
 
 	if ( gm_dirtyTimer.HasStarted() && gm_dirtyTimer.IsElapsed() )
 	{

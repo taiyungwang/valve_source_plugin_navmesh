@@ -35,6 +35,7 @@ extern ConVar nav_quicksave;
 extern IVEngineServer* engine;
 extern IPlayerInfoManager *playerinfomanager;
 extern IGameEventManager2 *gameeventmanager;
+extern CGlobalVars *gpGlobals;
 
 unsigned int CNavArea::m_nextID = 1;
 NavAreaVector TheNavAreas;
@@ -3546,21 +3547,21 @@ void CNavArea::RemoveFromOpenList( void )
 //--------------------------------------------------------------------------------------------------------------
 inline void CNavArea::SetClearedTimestamp( int teamID )
 {
-	m_clearedTimestamp[ teamID % MAX_NAV_TEAMS ] = playerinfomanager->GetGlobalVars()->curtime;
+	m_clearedTimestamp[ teamID % MAX_NAV_TEAMS ] = gpGlobals->curtime;
 }
 
 
 //--------------------------------------------------------------------------------------------------------------
 bool CNavArea::IsDamaging( void ) const
 {
-	return  playerinfomanager->GetGlobalVars()->tickcount <= m_damagingTickCount ;
+	return gpGlobals->tickcount <= m_damagingTickCount ;
 }
 
 
 //--------------------------------------------------------------------------------------------------------------
 inline void CNavArea::MarkAsDamaging( float duration )
 {
-	m_damagingTickCount = playerinfomanager->GetGlobalVars()->tickcount
+	m_damagingTickCount = gpGlobals->tickcount
 			+ TIME_TO_TICKS(duration);
 }
 

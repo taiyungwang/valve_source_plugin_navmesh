@@ -599,7 +599,8 @@ public:
 template < typename Functor >
 bool ForEachPlayer( Functor &func )
 {
-	for( int i=1; i<=playerinfomanager->GetGlobalVars()->maxClients; ++i )
+	extern CGlobalVars *gpGlobals;
+	for( int i=1; i<=gpGlobals->maxClients; ++i )
 	{
 		edict_t *ent = engine->PEntityOfEntIndex(i);
 		IPlayerInfo* player = playerinfomanager->GetPlayerInfo(ent);

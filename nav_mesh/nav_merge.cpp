@@ -132,8 +132,8 @@ void CNavMesh::CommandNavSaveSelected( const CCommand &args )
 	}
 	else
 	{
-		extern IPlayerInfoManager* playerinfomanager;
-		V_strncpy( fname, STRING( playerinfomanager->GetGlobalVars()->mapname ), sizeof( fname ) );
+		extern CGlobalVars *gpGlobals;
+		V_strncpy( fname, STRING( gpGlobals->mapname ), sizeof( fname ) );
 	}
 
 	int i;
