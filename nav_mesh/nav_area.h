@@ -455,10 +455,10 @@ public:
 
 	static void ClearSearchLists( void );						// clears the open and closed lists for a new search
 
-	void SetTotalCost( float value )	{ DebuggerBreakOnNaN_StagingOnly( value ); Assert( !IS_NAN(value) ); m_totalCost = value; }
-	float GetTotalCost( void ) const	{ DebuggerBreakOnNaN_StagingOnly( m_totalCost ); return m_totalCost; }
+	void SetTotalCost(float value) { DebuggerBreakOnNaN_StagingOnly(value); Assert(value >= 0.0 && !IS_NAN(value)); m_totalCost = value; }
+	float GetTotalCost(void) const { DebuggerBreakOnNaN_StagingOnly(m_totalCost); return m_totalCost; }
 
-	void SetCostSoFar( float value )	{ DebuggerBreakOnNaN_StagingOnly( value ); Assert( IS_NAN(value) ); m_costSoFar = value; }
+	void SetCostSoFar(float value) { DebuggerBreakOnNaN_StagingOnly(value); Assert(value >= 0.0 && !IS_NAN(value)); m_costSoFar = value; }
 	float GetCostSoFar( void ) const	{ DebuggerBreakOnNaN_StagingOnly( m_costSoFar ); return m_costSoFar; }
 
 	void SetPathLengthSoFar( float value )	{ DebuggerBreakOnNaN_StagingOnly( value ); Assert( !IS_NAN(value) ); m_pathLengthSoFar = value; }

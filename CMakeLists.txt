@@ -38,8 +38,7 @@ else()
 		$<$<CONFIG:>:/MT> #---------|
 		$<$<CONFIG:Debug>:/MTd> #---|-- Statically link the runtime libraries
 		$<$<CONFIG:Release>:/MT> #--|
-		-GS- -TP -W4 -fp:fast -GF -Zc:forScope -RTC1 -GR -Gd -Oy- -Fa -Fo -Fp -MP -Od -TP
-		)
+	)
 	list(APPEND shared_defs COMPILER_MSVC COMPILER_MSVC64 _CRT_NO_VA_START_VALIDATION _CRT_SECURE_NO_DEPRECATE 
 		_CRT_NONSTDC_NO_DEPRECATE)
 	set(my_link_options /NODEFAULTLIB:libcmtd /SAFESEH:NO)
