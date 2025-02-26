@@ -12,6 +12,7 @@
 #ifndef _NAV_H_
 #define _NAV_H_
 
+#define TEAM_ANY -2
 #include <vector.h>
 #include <utlvector.h>
 
@@ -43,8 +44,10 @@ const float DeathDrop = 400.0f;					// (300) distance at which we will die if we
 #if defined(CSTRIKE_DLL)
 const float ClimbUpHeight = JumpCrouchHeight;	// CSBots assume all jump up links are reachable
 #else
-const float ClimbUpHeight = JumpCrouchHeight; //200.0f;				// height to check for climbing up
+const float ClimbUpHeight = JumpCrouchHeight; // 200.0f;				// height to check for climbing up
 #endif
+
+const float CliffHeight = 300.0f;				// height which we consider a significant cliff which we would not want to fall off of
 
 // TERROR: Converted these values to use the same numbers as the player bounding boxes etc
 #define HalfHumanWidth			16
@@ -93,6 +96,7 @@ enum NavAttributeType
 	NAV_MESH_STAIRS			= 0x00001000,				// this area represents stairs, do not attempt to climb or jump them - just walk up
 	NAV_MESH_NO_MERGE		= 0x00002000,				// don't merge this area with adjacent areas
 	NAV_MESH_OBSTACLE_TOP	= 0x00004000,				// this nav area is the climb point on the tip of an obstacle
+	NAV_MESH_CLIFF			= 0x00008000,				// this nav area is adjacent to a drop of at least CliffHeight
 
 	NAV_MESH_FIRST_CUSTOM	= 0x00010000,				// apps may define custom app-specific bits starting with this value
 	NAV_MESH_LAST_CUSTOM	= 0x04000000,				// apps must not define custom app-specific bits higher than with this value
@@ -327,11 +331,11 @@ inline void DirectionToVector2D( NavDirType dir, Vector2D *v )
 {
 	switch( dir )
 	{
+		default: Assert(0);
 		case NORTH: v->x =  0.0f; v->y = -1.0f; break;
 		case SOUTH: v->x =  0.0f; v->y =  1.0f; break;
 		case EAST:  v->x =  1.0f; v->y =  0.0f; break;
 		case WEST:  v->x = -1.0f; v->y =  0.0f; break;
-		default: Assert(0);
 	}
 }
 
@@ -341,11 +345,11 @@ inline void CornerToVector2D( NavCornerType dir, Vector2D *v )
 {
 	switch( dir )
 	{
+		default: Assert(0);
 		case NORTH_WEST: v->x = -1.0f; v->y = -1.0f; break;
 		case NORTH_EAST: v->x =  1.0f; v->y = -1.0f; break;
 		case SOUTH_EAST: v->x =  1.0f; v->y =  1.0f; break;
 		case SOUTH_WEST: v->x = -1.0f; v->y =  1.0f; break;
-		default: Assert(0);
 	}
 
 	v->NormalizeInPlace();
@@ -358,6 +362,8 @@ inline void GetCornerTypesInDirection( NavDirType dir, NavCornerType *first, Nav
 {
 	switch ( dir )
 	{
+	default:
+		Assert(0);
 	case NORTH:
 		*first = NORTH_WEST;
 		*second = NORTH_EAST;
@@ -374,8 +380,6 @@ inline void GetCornerTypesInDirection( NavDirType dir, NavCornerType *first, Nav
 		*first = NORTH_WEST;
 		*second = SOUTH_WEST;
 		break;
-	default:
-		Assert(0);
 	}
 }
 
@@ -383,8 +387,7 @@ inline void GetCornerTypesInDirection( NavDirType dir, NavCornerType *first, Nav
 //--------------------------------------------------------------------------------------------------------------
 inline float RoundToUnits( float val, float unit )
 {
-	val = val + ((val < 0.0f) ? -unit*0.5f : unit*0.5f);
-	return (float)( unit * ( ((int)val) / (int)unit ) );
+	return (float)( unit * ( ((int)(val + ((val < 0.0f) ? -unit*0.5f : unit*0.5f)) / (int)unit )) );
 }
 
 class CNavLadder;
@@ -394,15 +397,5 @@ union NavLadderConnect;
 typedef CUtlVector< CNavArea * > NavAreaVector;
 
 typedef CUtlVector< CNavLadder * > NavLadderVector;
-
-#if !defined(_X360)
-typedef CUtlVectorUltraConservativeAllocator CNavVectorAllocator;
-#else
-typedef CNavVectorNoEditAllocator CNavVectorAllocator;
-#endif
-
-typedef CUtlVectorUltraConservative<NavLadderConnect, CNavVectorAllocator> NavLadderConnectVector;
-
-typedef CUtlVectorUltraConservative<NavConnect, CNavVectorAllocator> NavConnectVector;
 
 #endif // _NAV_H_

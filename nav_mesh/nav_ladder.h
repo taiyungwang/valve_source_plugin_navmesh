@@ -121,6 +121,8 @@ private:
 	unsigned int m_id;								///< unique area ID
 };
 
+typedef CUtlVector< CNavLadder * > NavLadderVector;
+
 //--------------------------------------------------------------------------------------------------------------
 inline IServerEntity *CNavLadder::GetLadderEntity( void ) const
 {

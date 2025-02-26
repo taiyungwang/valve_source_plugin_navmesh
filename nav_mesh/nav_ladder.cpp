@@ -22,7 +22,6 @@
 #include <utlbuffer.h>
 #include <ivdebugoverlay.h>
 #include <vphysics_interface.h>
-#include <shareddefs.h>
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
@@ -45,7 +44,7 @@ void CNavLadder::Shift( const Vector &shift )
 
 
 
- void CNavLadder::CompressIDs( CNavMesh* TheNaVmesh )
+ void CNavLadder::CompressIDs( CNavMesh* TheNavMesh )
 {
 	m_nextID = 1;
 
@@ -148,7 +147,9 @@ void CNavLadder::ConnectTo( CNavArea *area )
 
 
 //--------------------------------------------------------------------------------------------------------------
-
+/**
+ * Destructor
+ */
 CNavLadder::~CNavLadder()
 {
 	// tell the other areas we are going away
@@ -426,6 +427,8 @@ void CNavLadder::DrawConnectedAreas( bool isEdit )
 	}
 }
 
+#define TEAM_UNASSIGNED			0	// not assigned to a team
+
 //--------------------------------------------------------------------------------------------------------------
 bool CNavLadder::IsUsableByTeam(int teamNumber) const {
 	IServerEntity* ent = m_ladderEntity.Get();
@@ -611,7 +614,6 @@ bool ForEachPlayer( Functor &func )
 	}
 	return true;
 }
-
 
 
 //--------------------------------------------------------------------------------------------------------------

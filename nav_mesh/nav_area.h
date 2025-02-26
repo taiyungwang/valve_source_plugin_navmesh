@@ -14,25 +14,20 @@
 
 #include "nav_ladder.h"
 #include "CountDownTimer.h"
-#include <shareddefs.h>
 #include <networkvar.h>
 #include <tier1/memstack.h>
 
 // BOTPORT: Clean up relationship between team index and danger storage in nav areas
 enum { MAX_NAV_TEAMS = 2 };
 
-
-#ifdef STAGING_ONLY
-inline void DebuggerBreakOnNaN_StagingOnly( float val )
-{
-	if ( IS_NAN( val ) )
-		DebuggerBreak();
-}
-#else
 #define DebuggerBreakOnNaN_StagingOnly( _val )
-#endif
+
+static const Vector VEC_DUCK_HULL_MAX( 16,  16,  36 );
 
 class CFuncElevator;
+#ifdef NEXT_BOT
+class CFuncNavPrerequisite;
+#endif
 class CFuncNavCost;
 class KeyValues;
 
@@ -65,6 +60,13 @@ private:
 	static int m_nBytesCurrent;
 };
 
+#if !defined(_X360)
+typedef CUtlVectorUltraConservativeAllocator CNavVectorAllocator;
+#else
+typedef CNavVectorNoEditAllocator CNavVectorAllocator;
+#endif
+
+typedef CUtlVectorUltraConservative<NavLadderConnect, CNavVectorAllocator> NavLadderConnectVector;
 
 //-------------------------------------------------------------------------------------------------------------------
 /**
@@ -104,6 +106,9 @@ struct NavConnect
 	}
 };
 
+typedef CUtlVectorUltraConservative<NavConnect, CNavVectorAllocator> NavConnectVector;
+
+
 //-------------------------------------------------------------------------------------------------------------------
 /**
  * The NavLadderConnect union is used to refer to connections to ladders
@@ -118,6 +123,10 @@ union NavLadderConnect
 		return ladder == other.ladder;
 	}
 };
+
+
+typedef CUtlVectorUltraConservative<NavLadderConnect, CNavVectorAllocator> NavLadderConnectVector;
+
 
 //--------------------------------------------------------------------------------------------------------------
 /**
@@ -455,13 +464,13 @@ public:
 
 	static void ClearSearchLists( void );						// clears the open and closed lists for a new search
 
-	void SetTotalCost(float value) { DebuggerBreakOnNaN_StagingOnly(value); Assert(value >= 0.0 && !IS_NAN(value)); m_totalCost = value; }
-	float GetTotalCost(void) const { DebuggerBreakOnNaN_StagingOnly(m_totalCost); return m_totalCost; }
+	void SetTotalCost( float value )	{ DebuggerBreakOnNaN_StagingOnly( value ); Assert( value >= 0.0 && !IS_NAN(value) ); m_totalCost = value; }
+	float GetTotalCost( void ) const	{ DebuggerBreakOnNaN_StagingOnly( m_totalCost ); return m_totalCost; }
 
-	void SetCostSoFar(float value) { DebuggerBreakOnNaN_StagingOnly(value); Assert(value >= 0.0 && !IS_NAN(value)); m_costSoFar = value; }
+	void SetCostSoFar( float value )	{ DebuggerBreakOnNaN_StagingOnly( value ); Assert( value >= 0.0 && !IS_NAN(value) ); m_costSoFar = value; }
 	float GetCostSoFar( void ) const	{ DebuggerBreakOnNaN_StagingOnly( m_costSoFar ); return m_costSoFar; }
 
-	void SetPathLengthSoFar( float value )	{ DebuggerBreakOnNaN_StagingOnly( value ); Assert( !IS_NAN(value) ); m_pathLengthSoFar = value; }
+	void SetPathLengthSoFar( float value )	{ DebuggerBreakOnNaN_StagingOnly( value ); Assert( value >= 0.0 && !IS_NAN(value) ); m_pathLengthSoFar = value; }
 	float GetPathLengthSoFar( void ) const	{ DebuggerBreakOnNaN_StagingOnly( m_pathLengthSoFar ); return m_pathLengthSoFar; }
 
 	//- editing -----------------------------------------------------------------------------------------
@@ -806,7 +815,8 @@ public:
 
 	bool operator() ( edict_t *player )
 	{
-		// TODO: IMPELMENT
+		// TODO: player->OnNavAreaRemoved( m_area );
+
 		return true;
 	}
 

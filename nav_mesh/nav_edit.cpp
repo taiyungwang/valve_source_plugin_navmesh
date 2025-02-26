@@ -55,6 +55,8 @@ extern IServerGameClients* gameclients;
 extern IVEngineServer *engine;
 extern NavAreaVector TheNavAreas;
 extern IPhysicsSurfaceProps *physprops;
+extern CNavMesh *TheNavMesh;
+
 
 Color s_dragSelectionSetAddColor( 100, 255, 100, 96 );
 Color s_dragSelectionSetDeleteColor( 255, 100, 100, 96 );
@@ -173,6 +175,7 @@ void CNavMesh::GetEditVectors( Vector *pos, Vector *forward )
 #endif
 
 #ifdef SERVER_USES_VGUI
+extern void GetNavUIEditVectors( Vector *pos, Vector *forward );
 //	GetNavUIEditVectors( pos, forward );
 #endif // SERVER_USES_VGUI
 }
@@ -925,6 +928,7 @@ void CNavMesh::DrawEditMode( void )
 					if ( attributes & NAV_MESH_NO_HOSTAGES )Q_strncat( attrib, "NO HOSTAGES ", sizeof( attrib ), -1 );
 					if ( attributes & NAV_MESH_STAIRS )		Q_strncat( attrib, "STAIRS ", sizeof( attrib ), -1 );
 					if ( attributes & NAV_MESH_OBSTACLE_TOP ) Q_strncat( attrib, "OBSTACLE ", sizeof( attrib ), -1 );
+					if ( attributes & NAV_MESH_CLIFF )		Q_strncat( attrib, "CLIFF ", sizeof( attrib ), -1 );
 #ifdef TERROR
 					if ( attributes & TerrorNavArea::NAV_PLAYERCLIP )		Q_strncat( attrib, "PLAYERCLIP ", sizeof( attrib ), -1 );
 					if ( attributes & TerrorNavArea::NAV_BREAKABLEWALL )	Q_strncat( attrib, "BREAKABLEWALL ", sizeof( attrib ), -1 );

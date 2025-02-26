@@ -364,6 +364,13 @@ int NavEntity::DrawDebugTextOverlays() {
 
 	return offset;
 }
+#define TEAM_SPECTATOR			1	// spectator team
+// Start your team numbers after this
+#define LAST_SHARED_TEAM		TEAM_SPECTATOR
+
+// The first team that's game specific (i.e. not unassigned / spectator)
+#define FIRST_GAME_TEAM			(LAST_SHARED_TEAM+1)
+
 //-----------------------------------------------------------------------------------------------------
 int CFuncNavBlocker::DrawDebugTextOverlays( void )
 {
@@ -511,11 +518,9 @@ bool CFuncNavBlocker::CalculateBlocked( bool *pResultByTeam, const Vector &vecMi
 
 		for ( i=0; i<MAX_NAV_TEAMS; ++i )
 		{
-			if (pBlocker->m_isBlockingNav[i] && !pResultByTeam[i]
-					&& (bIsIntersecting
-							|| !(bIsIntersecting = IsBoxIntersectingBox(
-									pBlocker->m_CachedMins,
-									pBlocker->m_CachedMaxs, vecMins, vecMaxs)))) {
+			if ( pBlocker->m_isBlockingNav[i] && !pResultByTeam[i]
+				&& (bIsIntersecting || ( bIsIntersecting = IsBoxIntersectingBox( pBlocker->m_CachedMins, pBlocker->m_CachedMaxs, vecMins, vecMaxs ) ) != false ))
+			{
 				bBlocked = true;
 				pResultByTeam[i] = true;
 				nTeamsBlocked++;

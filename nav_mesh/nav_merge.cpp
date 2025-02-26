@@ -15,6 +15,7 @@
 #include "tier0/memdbgon.h"
 
 extern IFileSystem *filesystem;
+extern CNavMesh *TheNavMesh;
 
 //--------------------------------------------------------------------------------------------------------
 void CNavArea::SaveToSelectedSet( KeyValues *areaKey ) const

@@ -264,6 +264,7 @@ void CNavNode::Draw( void )
 
 	if ( (unsigned int)(nav_test_node.GetInt()) == m_id )
 	{
+		extern CNavMesh *TheNavMesh;
 		TheNavMesh->TestArea( this, 1, 1 );
 		nav_test_node.SetValue( 0 );
 	}

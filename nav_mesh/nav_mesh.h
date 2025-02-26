@@ -21,9 +21,9 @@
 
 #include "nav.h"
 #include "CountDownTimer.h"
-#include <shareddefs.h>
 #include <convar.h>
 #include <GameEventListener.h>
+
 
 class HidingSpot;
 class CUtlBuffer;
@@ -64,7 +64,7 @@ public:
 
 	bool operator()( edict_t *actor )
 	{
-		// TODO: Implement
+		//TODO: actor->OnNavAreaRemoved( m_deadArea );
 		return true;
 	}
 };
@@ -603,8 +603,27 @@ public:
 
 	bool FindNavAreaOrLadderAlongRay( const Vector &start, const Vector &end, CNavArea **area, CNavLadder **ladder, CNavArea *ignore = NULL );
 
+	void PostProcessCliffAreas();
 	void SimplifySelectedAreas( void );	// Simplifies the selected set by reducing to 1x1 areas and re-merging them up with loosened tolerances
 
+	// Script accessors
+	/* TODO vscript interface is tightly coupled with the game library
+	HSCRIPT ScriptGetNavAreaByID( int areaID );
+	HSCRIPT ScriptGetNavArea( const Vector& pos, float beneathLimt );
+	HSCRIPT ScriptGetNearestNavArea( const Vector& pos, float maxDist, bool checkLOS, bool checkGround );
+	int ScriptGetNavAreaCount() { return ( int )GetNavAreaCount(); }
+	void GetNavAreasInRadius( const Vector& pos, float radius, HSCRIPT hTable );
+	HSCRIPT FindNavAreaAlongRay( const Vector& start, const Vector& end, HSCRIPT hIgnoreArea );
+	void GetAllAreas( HSCRIPT hTable );
+	void GetObstructingEntities( HSCRIPT hTable );
+	void GetAreasWithAttributes( int bits, HSCRIPT hTable );
+	bool ScriptNavAreaBuildPath( HSCRIPT hStartArea, HSCRIPT hGoalArea, const Vector& goalPos, float maxPathLength, int teamID, bool ignoreNavBlockers );
+	float ScriptNavAreaTravelDistance( HSCRIPT hStartArea, HSCRIPT hGoalArea, float maxPathLength );
+	bool ScriptGetNavAreasFromBuildPath( HSCRIPT hStartArea, HSCRIPT hGoalArea, const Vector& goalPos, float maxPathLength, int teamID, bool ignoreNavBlockers, HSCRIPT hTable );
+	void ScriptRegisterAvoidanceObstacle( HSCRIPT hEntity );
+	void ScriptUnregisterAvoidanceObstacle( HSCRIPT hEntity );
+	void ScriptGetNavAreasOverlappingEntityExtent( HSCRIPT hEntity, HSCRIPT hTable );
+*/
 protected:
 	virtual void PostCustomAnalysis( void ) { }					// invoked when custom analysis step is complete
 	bool FindActiveNavArea( void );								// Finds the area or ladder the local player is currently pointing at.  Returns true if a surface was hit by the traceline.
@@ -805,17 +824,6 @@ private:
 	void TestAllAreasForBlockedStatus( void );					// Used to update blocked areas after a round restart. Need to delay so the map logic has all fired.
 	CountdownTimer m_updateBlockedAreasTimer;			
 };
-
-// the global singleton interface
-extern CNavMesh *TheNavMesh;
-
-// factory for creating the Navigation Mesh
-extern CNavMesh *NavMeshFactory( void );
-
-#ifdef STAGING_ONLY
-// for debugging the A* algorithm, if nonzero, show debug display and decrement for each pathfind
-extern int g_DebugPathfindCounter;
-#endif
 
 
 //--------------------------------------------------------------------------------------------------------------

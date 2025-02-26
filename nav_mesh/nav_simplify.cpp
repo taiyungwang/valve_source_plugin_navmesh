@@ -20,6 +20,7 @@ extern ConVar nav_coplanar_slope_limit;
 extern ConVar nav_coplanar_slope_limit_displacement;
 extern IVEngineServer* engine;
 extern NavAreaVector TheNavAreas;
+extern CNavMesh *TheNavMesh;
 
 //--------------------------------------------------------------------------------------------------------
 static bool ReduceToComponentAreas( CNavArea *area, bool addToSelectedSet )

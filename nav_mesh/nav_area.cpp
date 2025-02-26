@@ -36,6 +36,7 @@ extern IVEngineServer* engine;
 extern IPlayerInfoManager *playerinfomanager;
 extern IGameEventManager2 *gameeventmanager;
 extern CGlobalVars *gpGlobals;
+extern CNavMesh *TheNavMesh;
 
 unsigned int CNavArea::m_nextID = 1;
 NavAreaVector TheNavAreas;
@@ -58,6 +59,7 @@ ConVar nav_debug_blocked( "nav_debug_blocked", "0", FCVAR_CHEAT );
 ConVar nav_show_contiguous( "nav_show_continguous", "0", FCVAR_CHEAT, "Highlight non-contiguous connections" );
 
 const float DEF_NAV_VIEW_DISTANCE = 1500.0;
+
 ConVar nav_max_view_distance( "nav_max_view_distance", "6000", FCVAR_CHEAT, "Maximum range for precomputed nav mesh visibility (0 = default 1500 units)" );
 ConVar nav_update_visibility_on_edit( "nav_update_visibility_on_edit", "0", FCVAR_CHEAT, "If nonzero editing the mesh will incrementally recompue visibility" );
 ConVar nav_potentially_visible_dot_tolerance( "nav_potentially_visible_dot_tolerance", "0.98", FCVAR_CHEAT );
@@ -82,9 +84,9 @@ bool UTIL_IsCommandIssuedByServerAdmin() {
 	return true;
 }
 
-static void SelectedSetColorChaged(IConVar *var, const char *pOldValue,
-		float flOldValue) {
-	ConVarRef colorVar(var->GetName());
+static void SelectedSetColorChaged( IConVar *var, const char *pOldValue, float flOldValue )
+{
+	const ConVarRef colorVar( var );
 
 	Color *color = &s_selectedSetColor;
 	if (strcmp(var->GetName(), "nav_selected_set_border_color") == 0) {
@@ -97,12 +99,13 @@ static void SelectedSetColorChaged(IConVar *var, const char *pOldValue,
 	int g = color->r();
 	int b = color->b();
 	int a = color->a();
-	int numFound = sscanf(colorVar.GetString(), "%d %d %d %d", &r, &g, &b, &a);
+	int numFound = sscanf( colorVar.GetString(), "%d %d %d %d", &r, &g, &b, &a );
 
 	(*color)[0] = r;
 	(*color)[1] = g;
 	(*color)[2] = b;
-	if (numFound > 3) {
+	if ( numFound > 3 )
+	{
 		(*color)[3] = a;
 	}
 }
@@ -3557,6 +3560,10 @@ bool CNavArea::IsDamaging( void ) const
 	return gpGlobals->tickcount <= m_damagingTickCount ;
 }
 
+#define TICK_INTERVAL			(gpGlobals->interval_per_tick)
+
+
+#define TIME_TO_TICKS( dt )		( (int)( 0.5f + (float)(dt) / TICK_INTERVAL ) )
 
 //--------------------------------------------------------------------------------------------------------------
 inline void CNavArea::MarkAsDamaging( float duration )
@@ -4317,7 +4324,23 @@ bool CNavArea::ComputeLighting( void )
 		}
 
 		Vector light( 0, 0, 0 );
+		// FIXMEL4DTOMAINMERGE
+		//if ( !engine->GetLightForPointListenServerOnly( pos, false, &light ) )
+		//{
+			//NDebugOverlay::Line( pos, pos + Vector( 0, 0, -100 ), 255, 0, 0, false, 100.0f );
+		//	return false;
+		//}
+
 		Vector ambientColor;
+		// FIXMEL4DTOMAINMERGE
+		//if ( !GetTerrainAmbientLightAtPoint( pos, &ambientColor ) )
+		{
+			//NDebugOverlay::Line( pos, pos + Vector( 0, 0, -100 ), 255, 127, 0, false, 100.0f );
+			return false;
+		}
+
+		//NDebugOverlay::Line( pos, pos + Vector( 0, 0, -100 ), 0, 255, 127, false, 100.0f );
+
 		float ambientIntensity = ambientColor.x + ambientColor.y + ambientColor.z;
 		float lightIntensity = light.x + light.y + light.z;
 		lightIntensity = clamp( lightIntensity, 0.f, 1.f );	// sum can go well over 1.0, but it's the lower region we care about.  if it's bright, we don't need to know *how* bright.
@@ -4334,7 +4357,6 @@ bool CNavArea::ComputeLighting( void )
 //--------------------------------------------------------------------------------------------------------------
 CON_COMMAND_F( nav_update_lighting, "Recomputes lighting values", FCVAR_CHEAT )
 {
-
 	if ( !UTIL_IsCommandIssuedByServerAdmin() )
 		return;
 	int numComputed = 0;
@@ -4609,9 +4631,7 @@ static void CommandNavUpdateBlocked( void )
 		area->UpdateBlocked( true );
 		if ( area->IsBlocked( TEAM_ANY ) )
 		{
-			DevMsg("Area #%d %s is blocked\n", area->GetID(),
-					VecToString(
-							area->GetCenter() + Vector( 0, 0, HalfHumanHeight )));
+			DevMsg( "Area #%d %s is blocked\n", area->GetID(), VecToString( area->GetCenter() + Vector( 0, 0, HalfHumanHeight ) ) );
 		}
 	}
 	else
@@ -4624,9 +4644,7 @@ static void CommandNavUpdateBlocked( void )
 			area->UpdateBlocked( true );
 			if ( area->IsBlocked( TEAM_ANY ) )
 			{
-				DevMsg("Area #%d %s is blocked\n", area->GetID(),
-						VecToString(
-								area->GetCenter() + Vector( 0, 0, HalfHumanHeight )));
+				DevMsg( "Area #%d %s is blocked\n", area->GetID(), VecToString( area->GetCenter() + Vector( 0, 0, HalfHumanHeight ) ) );
 				if ( !blockedArea )
 				{
 					blockedArea = area;
@@ -4790,7 +4808,6 @@ void CNavArea::UpdateBlockedFromNavBlockers( void )
 			event->SetInt( "blocked", isBlocked );
 			gameeventmanager->FireEvent( event );
 		}
-
 		if ( isBlocked )
 		{
 			if ( nav_debug_blocked.GetBool() )
@@ -4885,8 +4902,7 @@ void CNavArea::UpdateBlocked( bool force, int teamID )
 	const float sizeY = MAX( 1, MIN( GetSizeY()/2 - 5, HalfHumanWidth ) );
 	Extent bounds;
 	bounds.lo.Init( -sizeX, -sizeY, 0 );
-	// duck height - halfhumanheight
-	bounds.hi.Init( sizeX, sizeY, 36.0f - HalfHumanHeight );
+	bounds.hi.Init( sizeX, sizeY, VEC_DUCK_HULL_MAX.z - HalfHumanHeight );
 
 	bool wasBlocked = IsBlocked( TEAM_ANY );
 
@@ -5267,6 +5283,7 @@ static void CommandNavSelectOverlapping( void )
 {
 	if ( !UTIL_IsCommandIssuedByServerAdmin() )
 		return;
+
 	TheNavMesh->ClearSelectedSet();
 
 	SelectOverlappingAreas overlapCheck;

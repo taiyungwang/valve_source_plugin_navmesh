@@ -18,13 +18,16 @@
 #include "func_elevator.h"
 #endif
 
+#if defined( _X360 )
 #include "tier1/lzmaDecoder.h"
+#endif
 
 #ifdef CSTRIKE_DLL
 #include "cs_shareddefs.h"
 #include "nav_pathfind.h"
 #include "cs_nav_area.h"
 #endif
+#include <tier1/fmtstr.h>
 #include <utlbuffer.h>
 #include <filesystem.h>
 #include <eiface.h>
@@ -45,6 +48,7 @@ extern IFileSystem *filesystem;
 extern IVEngineServer* engine;
 extern CGlobalVars *gpGlobals;
 extern NavAreaVector TheNavAreas;
+extern CNavMesh* TheNavMesh;
 
 //--------------------------------------------------------------------------------------------------------------
 //
@@ -1187,15 +1191,32 @@ bool CNavMesh::Save( void ) const
 			ladder->Save( fileBuffer, NavCurrentVersion );
 		}
 	}
-	
+
 	//
 	// Store derived class mesh info
 	//
 	SaveCustomData( fileBuffer );
-
+/* TODO
+	if ( p4 )
+	{
+		char szCorrectPath[MAX_PATH];
+		filesystem->GetCaseCorrectFullPath( filename, szCorrectPath );
+		CP4AutoEditAddFile a( szCorrectPath );
+	}
+**/
 	if ( !filesystem->WriteFile( filename, "MOD", fileBuffer ) )
 	{
+		// XXX(JohnS): Nav bails out after analyze regardless of it failed to save work, meaning if your .nav is
+		//             read-only you're about to throw away everything.  This code is old and bad.  Just make a generous
+		//             effort to save a backup, since this is common with e.g. read-only p4 nav files.
+		CFmtStrN< MAX_PATH > sBackupFile( "%s.failedsave", filename ); // .bak voted too likely to conflict with user
+																	   // saved files
 		Warning( "Unable to save %d bytes to %s\n", fileBuffer.Size(), filename );
+
+		if ( filesystem->WriteFile( sBackupFile, "MOD", fileBuffer ) )
+		{
+			Warning( "NAV failed to save, saved backup copy to '%s'\n", sBackupFile.Get() );
+		}
 		return false;
 	}
 
@@ -1399,13 +1420,9 @@ const CUtlVector< Place > *CNavMesh::GetPlacesFromNavFile( bool *hasUnnamedPlace
 	Q_snprintf( filename, sizeof( filename ), FORMAT_NAVFILE, STRING( gpGlobals->mapname ) );
 
 	CUtlBuffer fileBuffer( 4096, 1024*1024, CUtlBuffer::READ_ONLY );
-	if ( GetNavDataFromFile( fileBuffer ) != NAV_OK )
-	{
-		return NULL;
-	}
-
-	// check magic number
-	if ( fileBuffer.GetUnsignedInt() != NAV_MAGIC_NUMBER || !fileBuffer.IsValid() )
+	if ( GetNavDataFromFile( fileBuffer ) != NAV_OK
+			// check magic number
+			|| fileBuffer.GetUnsignedInt() != NAV_MAGIC_NUMBER || !fileBuffer.IsValid() )
 	{
 		return NULL;	// Corrupt nav file?
 	}
@@ -1473,8 +1490,7 @@ NavErrorType CNavMesh::Load( void )
 	}
 
 	// check magic number
-	unsigned int magic = fileBuffer.GetUnsignedInt();
-	if ( !fileBuffer.IsValid() || magic != NAV_MAGIC_NUMBER )
+	if ( fileBuffer.GetUnsignedInt() != NAV_MAGIC_NUMBER || !fileBuffer.IsValid() )
 	{
 		Msg( "Invalid navigation file.\n" );
 		return NAV_INVALID_FILE;
@@ -1523,14 +1539,7 @@ NavErrorType CNavMesh::Load( void )
 		}
 	}
 
-	if ( version >= 14 )
-	{
-		m_isAnalyzed = fileBuffer.GetUnsignedChar() != 0;
-	}
-	else
-	{
-		m_isAnalyzed = false;
-	}
+	m_isAnalyzed = version >= 14 && fileBuffer.GetUnsignedChar() != 0;
 
 	// load Place directory
 	if ( version >= 5 )
